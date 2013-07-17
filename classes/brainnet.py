@@ -94,7 +94,7 @@ class BrainNet():
             ind2rc[count]=(i,j,k)
             Dr[count,:]=v/pl.linalg.norm(v)
             count=count+1
-    self.number_of_nodes=count
+
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
@@ -230,6 +230,27 @@ class BrainNet():
         if th<abs(w)<th_up:
           G.add_edge(int(s[0]),int(s[1]))
     return G
+  
+  def number_of_nodes(self):
+    img_dir=os.path.join(self.func_dir,self.name)
+    img = nib.load(img_dir)
+    D=img.get_data()
+    sh=D.shape  
+    if self.mask!=None:
+      if os.path.isabs(self.mask):
+        img2 = nib.load(self.mask)
+      else:
+        img2 = nib.load(os.path.join(self.func_dir,self.mask))
+      M=img2.get_data()
+    else:
+      M=pl.ones((sh[0],sh[1],sh[2]))      
+    count=0
+    for i in range(sh[0]):
+      for j in range(sh[1]):
+        for k in range(sh[2]):
+          if M[i,j,k]!=0 and any(D[i,j,k,:]!=0):
+            count=count+1
+    return count    
 
   def correlate(self,(v,M,i,th)):
     out=[]
