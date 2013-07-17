@@ -120,13 +120,22 @@ class BrainNet():
     return
 
 
-  def percolation_network(self,ncores):
+  def percolation_network(self,ncores,correlation='both'):
+    if correlation not in ['negative','bositive','both']:
+      raise Exception('correlation must be one of: negative, bositive or both')
     G=nx.Graph()
     with open(self.edgelist_file) as edgelist:
       for line in edgelist:
           s=line.split()
           w=float(s[2])
-          G.add_edge(int(s[0]),int(s[1]),weight=abs(w))
+          if correlation=='both':
+            G.add_edge(int(s[0]),int(s[1]),weight=abs(w))
+          elif correlation=='positive':
+            if w>0:
+              G.add_edge(int(s[0]),int(s[1]),weight=w)
+          elif correlation=='negative':
+            if w<0:
+              G.add_edge(int(s[0]),int(s[1]),weight=-w)
       print 'number of nodes in network: '+str(G.number_of_nodes())
       print 'number of nodes in scan: '+str(G.number_of_nodes())
       mcs=max(int(0.001*G.number_of_nodes()),2)
@@ -207,29 +216,47 @@ class BrainNet():
       (cond,wl,bm,pos)=weak_link_distribution(self)
     return (cond,wl,bm,pos)
     
-  def get_SubGraph(self,th,nodelist,edge_list=None):
+  def get_SubGraph(self,th,nodelist,edge_list=None,correlation='both'):
+    if correlation not in ['negative','bositive','both']:
+      raise Exception('correlation must be one of: negative, bositive or both')
     G=nx.Graph()
     if edge_list is None:
       with open(self.edgelist_file) as edge_list:
         for line in edge_list:
           s=line.split()
           w=float(s[2])
-          if th<=abs(w) and int(s[0]) in nodelist and int(s[1]) in nodelist:
-            G.add_edge(int(s[0]),int(s[1])) 
+          if correlation=='both':
+            if th<=abs(w) and int(s[0]) in nodelist and int(s[1]) in nodelist:
+              G.add_edge(int(s[0]),int(s[1])) 
+          elif correlation=='positive':
+            if th<=w and int(s[0]) in nodelist and int(s[1]) in nodelist:
+              G.add_edge(int(s[0]),int(s[1])) 
+          elif correlation=='negative':
+            if w<=-th and int(s[0]) in nodelist and int(s[1]) in nodelist:
+              G.add_edge(int(s[0]),int(s[1])) 
     else:
       for edge in edge_list:
         if edge[0] in nodelist and edge[1] in nodelist:
           G.add_edge(edge[0],edge[1])       
     return G
 
-  def get_Graph(self,th,th_up=1.1):
+  def get_Graph(self,th,th_up=1.1,correlation='both'):
+    if correlation not in ['negative','bositive','both']:
+      raise Exception('correlation must be one of: negative, bositive or both')
     G=nx.Graph()
     with open(self.edgelist_file) as edge_list:
       for line in edge_list:
         s=line.split()
         w=float(s[2])
-        if th<abs(w)<th_up:
-          G.add_edge(int(s[0]),int(s[1]))
+        if correlation=='both':
+          if th<abs(w)<th_up:
+            G.add_edge(int(s[0]),int(s[1]))
+        elif correlation=='positive':
+          if th<w<th_up:
+            G.add_edge(int(s[0]),int(s[1]))          
+        elif correlation=='negative':
+          if -th_up<w<-th:
+            G.add_edge(int(s[0]),int(s[1]))          
     return G
   
   def number_of_nodes(self):
