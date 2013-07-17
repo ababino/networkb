@@ -127,7 +127,8 @@ class BrainNet():
           s=line.split()
           w=float(s[2])
           G.add_edge(int(s[0]),int(s[1]),weight=abs(w))
-      print 'number of nodes: '+str(G.number_of_nodes())
+      print 'number of nodes in network: '+str(G.number_of_nodes())
+      print 'number of nodes in scan: '+str(G.number_of_nodes())
       mcs=max(int(0.001*G.number_of_nodes()),2)
       th=list(pl.arange(self.min_th,1,0.001))
       (gc,NON,cluster_dic)=self.percolation(G,th,mcs,ncores)
@@ -270,38 +271,9 @@ class BrainNet():
     """
     Prunes G and returns a list of clusters biggers than mcs 
     """
-    """
-    def aux((n1,nbrs,th)):
-      r_edges=[]
-      for n2 in nbrs:
-        if nbrs[n2]['weight']<th:
-          r_edges.append((n1,n2))
-      return r_edges
-    queue = pprocess.Queue(limit=ncores)
-    calc = queue.manage(pprocess.MakeParallel(aux))
-    T=[th for x in range(G.number_of_nodes())]
-    for  it in itertools.izip(G.adjacency_iter(),T):
-      calc(it)
-    
-    r_edges=[]
-    for d in queue:
-      r_edges.extend(d)
-    G.remove_edges_from(r_edges)
-    """    
-    ######prune########
-    """
-    r_edges=[]
-    for n1,nbrs in G.adjacency_iter():
-      for n2 in nbrs:
-        if nbrs[n2]['weight']<th:
-          r_edges.append((n1,n2))
-    """
-    #r_edges=[(n1,n2) for n1,nbrs in G.adjacency_iter() for n2 in nbrs if nbrs[n2]['weight']<th]
+
     r_edges=[(n1,n2) for (n1,n2,w) in G.edges_iter(data=True) if w['weight']<th]
     G.remove_edges_from(r_edges)    
-    
-
-    
 
     ####connected components biggers than mcs######
     
@@ -373,7 +345,7 @@ class BrainNet():
     cluster_dic: a dictionary of clusters bigger than mcs for each 
     threshold. 
     """
-    nn=float(G.number_of_nodes())
+    nn=self.number_of_nodes() #float(G.number_of_nodes())
     #giant components list
     gc=[[]]
     #network of networks          
