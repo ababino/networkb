@@ -94,6 +94,7 @@ class BrainNet():
             ind2rc[count]=(i,j,k)
             Dr[count,:]=v/pl.linalg.norm(v)
             count=count+1
+    self.number_of_nodes=count
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
