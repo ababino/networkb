@@ -7,9 +7,8 @@ Created on Wed May 15 19:23:23 2013
 import networkx as nx
 import networkb, numpy, json
 from scipy import spatial
-from networkb.algorithms.utils import find_peaks
 
-def mass_path_distance(bn,N_clus,mcs,op='first'):#,jump_size
+def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):#,jump_size
   N=[]
   lmean=[]
   lmax=[]
@@ -35,7 +34,7 @@ def mass_path_distance(bn,N_clus,mcs,op='first'):#,jump_size
         pc=jump
         gap=gc[j-1]-gc[j]    
   print pc
-  G=bn.get_Graph(pc)
+  G=bn.get_Graph(pc,correlation=correlation)
   print G.number_of_nodes()
   cluster_list=nx.connected_components(G)
   edge_list=G.edges()

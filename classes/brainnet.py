@@ -202,11 +202,11 @@ class BrainNet():
     NON=json_graph.node_link_graph(json.load(open(self.non_file)))
     return NON 
 
-  def get_cluster_properties(self,force=False,N_clus=3,mcs=2,op='first'):
+  def get_cluster_properties(self,force=False,N_clus=3,mcs=2,op='first',correlation='both'):
     if os.path.exists(self.cluster_properties_file) and not force:
       clusters_properties=json.load(open(self.cluster_properties_file))
     else:
-      clusters_properties=mass_path_distance(self,N_clus,mcs,op)
+      clusters_properties=mass_path_distance(self,N_clus,mcs,op,correlation)
     return clusters_properties
 
   def get_weak_link_distribution(self,force=False):
