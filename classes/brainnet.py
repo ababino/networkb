@@ -137,7 +137,7 @@ class BrainNet():
             if w<0:
               G.add_edge(int(s[0]),int(s[1]),weight=-w)
       print 'number of nodes in network: '+str(G.number_of_nodes())
-      print 'number of nodes in scan: '+str(G.number_of_nodes())
+      print 'number of nodes in scan: '+str(self.number_of_nodes())
       mcs=max(int(0.001*G.number_of_nodes()),2)
       th=list(pl.arange(self.min_th,1,0.001))
       (gc,NON,cluster_dic)=self.percolation(G,th,mcs,ncores)
