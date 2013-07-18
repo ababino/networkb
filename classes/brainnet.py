@@ -9,7 +9,9 @@ import pylab as pl
 from networkx.readwrite import json_graph
 
 class BrainNet():
-  def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,force_edgelist=False,force_percolation=False,correlation='both'):
+  def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,
+               force_edgelist=False,force_percolation=False,
+               correlation='both'):
     self.dir=directory
     self.name=name
     self.mask=mask
@@ -23,7 +25,9 @@ class BrainNet():
       print 'Building edgelist '
       self.gen_edgelist(min_th,ncores)
     self.min_th=min_th
-    if not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or force_percolation:
+    if (
+    not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or 
+    force_percolation):
       print 'Percolating'      
       self.percolation_network(ncores,correlation=correlation)
 
@@ -121,8 +125,8 @@ class BrainNet():
 
 
   def percolation_network(self,ncores,correlation='both'):
-    if correlation not in ['negative','bositive','both']:
-      raise Exception('correlation must be one of: negative, bositive or both')
+    if correlation not in ['negative','positive','both']:
+      raise Exception('correlation must be one of: negative, positive or both')
     G=nx.Graph()
     with open(self.edgelist_file) as edgelist:
       for line in edgelist:
@@ -139,6 +143,7 @@ class BrainNet():
       print 'number of nodes in network: '+str(G.number_of_nodes())
       print 'number of nodes in scan: '+str(self.number_of_nodes())
       mcs=max(int(0.001*G.number_of_nodes()),2)
+      
       th=list(pl.arange(self.min_th,1,0.001))
       (gc,NON,cluster_dic)=self.percolation(G,th,mcs,ncores)
       self.save_data(NON,cluster_dic,gc,th)  
@@ -155,7 +160,6 @@ class BrainNet():
     f.write(json.dumps(cluster_dic))
     f.close()
     
-    
     f=open(os.path.join(self.network_dir,'gc.json'),'w')
     f.write(json.dumps(gc))
     f.close()
@@ -165,9 +169,9 @@ class BrainNet():
     f.close()
     return 
 
-#==============================================================================
+#===========================================================================
 # Geters
-#==============================================================================
+#===========================================================================
   def get_node2voxel(self):
     node2voxel=json.load(open(self.node2voxel_file))
     return node2voxel
@@ -202,7 +206,8 @@ class BrainNet():
     NON=json_graph.node_link_graph(json.load(open(self.non_file)))
     return NON 
 
-  def get_cluster_properties(self,force=False,N_clus=3,mcs=2,op='first',correlation='both'):
+  def get_cluster_properties(self,force=False,N_clus=3,mcs=2,op='first',
+                             correlation='both'):
     if os.path.exists(self.cluster_properties_file) and not force:
       clusters_properties=json.load(open(self.cluster_properties_file))
     else:
@@ -217,8 +222,8 @@ class BrainNet():
     return (cond,wl,bm,pos)
     
   def get_SubGraph(self,th,nodelist,edge_list=None,correlation='both'):
-    if correlation not in ['negative','bositive','both']:
-      raise Exception('correlation must be one of: negative, bositive or both')
+    if correlation not in ['negative','positive','both']:
+      raise Exception('correlation must be one of: negative, positive or both')
     G=nx.Graph()
     if edge_list is None:
       with open(self.edgelist_file) as edge_list:
@@ -241,8 +246,9 @@ class BrainNet():
     return G
 
   def get_Graph(self,th,th_up=1.1,correlation='both'):
-    if correlation not in ['negative','bositive','both']:
-      raise Exception('correlation must be one of: negative, bositive or both')
+    if correlation not in ['negative','positive','both']:
+      raise Exception(
+      'correlation must be one of: negative, positive or both')
     G=nx.Graph()
     with open(self.edgelist_file) as edge_list:
       for line in edge_list:

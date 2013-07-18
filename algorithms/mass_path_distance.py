@@ -23,22 +23,29 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):#,jump_size
   #pc=th[th.index(max(networkb.find_th_jumps(bn,N_clus)))+1]
   jumps=networkb.find_th_jumps(bn,N_clus)
   if op=='first':  
+    if len(jumps)==0:
+      print 'no jumps'
+      return {'N':[],'rmax':[],'lmax':[],'lmean':[]}
     pc=max(jumps)
   elif op=='biggest':
     gap=0
+    pc=1
     gc=bn.get_gc()[0]
     th=bn.get_th()
+    if len(jumps)==0:
+      print 'no jumps'
+      return {'N':[],'rmax':[],'lmax':[],'lmean':[]}
     for jump in jumps:
       j=th.index(jump)
       if gc[j-1]-gc[j]>gap:
         pc=jump
         gap=gc[j-1]-gc[j]    
-  print pc
+  print 'pc='+str(pc)
   G=bn.get_Graph(pc,correlation=correlation)
-  print G.number_of_nodes()
+  print 'number of nodes in network at pc: '+str(G.number_of_nodes())
   cluster_list=nx.connected_components(G)
   edge_list=G.edges()
-  print len(cluster_list)
+  print 'number of clusters: '+str(len(cluster_list))
   #cluster_list=bn.get_cluster_dic()[pc]
   N=[len(x) for x in cluster_list]
   """
@@ -46,14 +53,16 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):#,jump_size
   N=[len(x[1]) for x in cluster_list]    
   """
   for i,nodelist in enumerate(cluster_list):
-    print str(pc)+'  '+str(i)+', '+str(N[i])
+    if N[i]>10:
+      print str(pc)+'  '+str(i)+', '+str(N[i])
     Gsub=bn.get_SubGraph(float(pc),nodelist,edge_list)
     A=numpy.zeros([N[i],3])
     pos=numpy.array([0,0,0,1])
     path_length=[]
     H = Gsub.copy()
     for j,node in enumerate(H):
-      path_length.extend(nx.single_source_shortest_path_length(Gsub, node).values())
+      temp=nx.single_source_shortest_path_length(Gsub, node).values()
+      path_length.extend(temp)
       pos[0:3]=voxels[str(node)]
       A[j,:]=numpy.dot(affine, numpy.transpose(pos))[0:3]
       Gsub.remove_node(node)
@@ -62,5 +71,6 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):#,jump_size
     lmax.append(max(path_length))
     lmean.append(numpy.mean(path_length))
     del Gsub, D, A, pos
-  json.dump({'N':N,'rmax':rmax,'lmax':lmax,'lmean':lmean},open(bn.cluster_properties_file,'w'))
-  return {'N':N,'rmax':rmax,'lmax':lmax,'lmean':lmean} #(N,lmean,lmax,rmax)
+  json.dump({'N':N,'rmax':rmax,'lmax':lmax,'lmean':lmean},
+            open(bn.cluster_properties_file,'w'))
+  return {'N':N,'rmax':rmax,'lmax':lmax,'lmean':lmean}
