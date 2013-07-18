@@ -9,7 +9,7 @@ import pylab as pl
 from networkx.readwrite import json_graph
 
 class BrainNet():
-  def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,force_edgelist=False,force_percolation=False):
+  def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,force_edgelist=False,force_percolation=False,correlation='both'):
     self.dir=directory
     self.name=name
     self.mask=mask
@@ -25,7 +25,7 @@ class BrainNet():
     self.min_th=min_th
     if not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or force_percolation:
       print 'Percolating'      
-      self.percolation_network(ncores)
+      self.percolation_network(ncores,correlation=correlation)
 
     self.non_file=os.path.join(self.network_dir,'non.json')
     self.cluster_dic_file=os.path.join(self.network_dir,'cluster_dic.json')
