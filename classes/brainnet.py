@@ -35,8 +35,10 @@ class BrainNet():
     self.cluster_dic_file=os.path.join(self.network_dir,'cluster_dic.json')
     self.gc_file=os.path.join(self.network_dir,'gc.json')
     self.th_file=os.path.join(self.network_dir,'th.json')
-    self.cluster_properties_file=os.path.join(self.network_dir,'cluster_properties.json')
-    self.weak_link_distribution_file=os.path.join(self.network_dir,'weak_link_distribution.json')
+    self.cluster_properties_file=os.path.join(self.network_dir,
+                                              'cluster_properties.json')
+    self.weak_link_distribution_file=os.path.join(self.network_dir,
+                                                  'weak_link_distribution.json')
     return
 
   def check_dir_structure(self):
@@ -59,15 +61,15 @@ class BrainNet():
       print 'wrong number of .dat files: ' + str(len(dat_files))
     return
 
-#==============================================================================
+#===========================================================================
 # Generate edge list
-#==============================================================================
+#===========================================================================
   def gen_edgelist(self,th,ncores):
     """
     Gennerates a list of correlations among voxel's time series of file 
-    "filename". "mask" is the mask file for "filename". "ncores" is the number 
-    of cores to use in the calculation. "th" is the minimun threshold that will
-    be save to the file.
+    "filename". "mask" is the mask file for "filename". "ncores" is the 
+    number of cores to use in the calculation. "th" is the minimun threshold 
+    that will be save to the file.
     """
     img_dir=os.path.join(self.func_dir,self.name)
     img = nib.load(img_dir)
@@ -126,7 +128,8 @@ class BrainNet():
 
   def percolation_network(self,ncores,correlation='both'):
     if correlation not in ['negative','positive','both']:
-      raise Exception('correlation must be one of: negative, positive or both')
+      raise Exception(
+      'correlation must be one of: negative, positive or both')
     G=nx.Graph()
     with open(self.edgelist_file) as edgelist:
       for line in edgelist:
@@ -223,7 +226,8 @@ class BrainNet():
     
   def get_SubGraph(self,th,nodelist,edge_list=None,correlation='both'):
     if correlation not in ['negative','positive','both']:
-      raise Exception('correlation must be one of: negative, positive or both')
+      raise Exception(
+      'correlation must be one of: negative, positive or both')
     G=nx.Graph()
     if edge_list is None:
       with open(self.edgelist_file) as edge_list:
@@ -231,7 +235,8 @@ class BrainNet():
           s=line.split()
           w=float(s[2])
           if correlation=='both':
-            if th<=abs(w) and int(s[0]) in nodelist and int(s[1]) in nodelist:
+            if (th<=abs(w) and int(s[0]) in nodelist and 
+                int(s[1]) in nodelist):
               G.add_edge(int(s[0]),int(s[1])) 
           elif correlation=='positive':
             if th<=w and int(s[0]) in nodelist and int(s[1]) in nodelist:
@@ -305,11 +310,10 @@ class BrainNet():
     Prunes G and returns a list of clusters biggers than mcs 
     """
 
-    r_edges=[(n1,n2) for (n1,n2,w) in G.edges_iter(data=True) if w['weight']<th]
+    r_edges=[(n1,n2) for (n1,n2,w) in G.edges_iter(data=True) if
+    w['weight']<th]
     G.remove_edges_from(r_edges)    
 
-    ####connected components biggers than mcs######
-    
     cc=nx.connected_components(G)
     cc100=[cc[j] for j in range(len(cc)) if len(cc[j])>=mcs]
 
@@ -349,7 +353,8 @@ class BrainNet():
           if set(dat['cc']).issuperset(set(cc100[j])) and dat['th']==th_old:
             NON.add_edge(node,n)
         if nx.degree(NON,n)==0 and check:
-          print 'ojo ('+str(n)+', '+str(len(cc100[j]))+', th='+str(th)+', th_old='+str(th_old)+')' 
+          print ('ojo ('+str(n)+', '+str(len(cc100[j]))+', th='+str(th)+
+          ', th_old='+str(th_old)+')') 
         n=n+1
     
     cond=True

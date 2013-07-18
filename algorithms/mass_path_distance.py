@@ -8,7 +8,7 @@ import networkx as nx
 import networkb, numpy, json
 from scipy import spatial
 
-def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):#,jump_size
+def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):
   N=[]
   lmean=[]
   lmax=[]
@@ -16,11 +16,6 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):#,jump_size
   voxels=bn.get_node2voxel()
   affine=bn.get_affine()
 
-  #gc=bn.get_gc()
-  #th=bn.get_th()
-  #pc=str(max(find_peaks(th,gc),key=lambda x:x[1])[0])
-  #pc=str(max(find_peaks(th,gc),key=lambda x:x[0])[0])
-  #pc=th[th.index(max(networkb.find_th_jumps(bn,N_clus)))+1]
   jumps=networkb.find_th_jumps(bn,N_clus)
   if op=='first':  
     if len(jumps)==0:
