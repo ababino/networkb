@@ -79,7 +79,8 @@ def find_th_jumps(bn,max_clus=3):
   ths=list(set(ths))
   subnodes=[]
   for th in ths:
-    nodes_dic[th]=sorted(nodes_dic[th],key=lambda x: len(x[1]),reverse=True)[:min(len(nodes_dic[th]),max_clus)]
+    temp=sorted(nodes_dic[th],key=lambda x: len(x[1]),reverse=True)
+    nodes_dic[th]=temp[:min(len(nodes_dic[th]),max_clus)]
     subnodes.extend([x[0] for x in nodes_dic[th]])
   
   subNON=networkx.subgraph(NON,subnodes)

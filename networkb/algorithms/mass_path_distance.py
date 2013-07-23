@@ -56,7 +56,7 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):
     path_length=[]
     H = Gsub.copy()
     for j,node in enumerate(H):
-      temp=nx.single_source_shortest_path_length(Gsub, node).values()
+      temp=[x for x in nx.single_source_shortest_path_length(Gsub, node).values() if x>0]
       path_length.extend(temp)
       pos[0:3]=voxels[str(node)]
       A[j,:]=numpy.dot(affine, numpy.transpose(pos))[0:3]
