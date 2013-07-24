@@ -1,1 +1,1 @@
-exclude .gitignore
+include LICENSE README.md
