@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(name='networkb',
-      version='0.1',
+      version='0.1.0',
       description='Network analysis for brain data',
       author='Andres Babino',
       author_email='ababino@gmail.com',
