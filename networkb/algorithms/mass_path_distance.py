@@ -7,8 +7,10 @@ Created on Wed May 15 19:23:23 2013
 import networkx as nx
 import networkb, numpy, json
 from scipy import spatial
+import logging
+logger = logging.getLogger('networkb.algorithms.mass_path_distance')
 
-def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):
+def mass_path_distance(bn,N_clus,op='first',correlation='both'):
   """
   Returns mass, maximun radio, maximun path length and average path 
   length for all clusters at critical threshold. If op='first' the 
@@ -41,16 +43,18 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):
       if gc[j-1]-gc[j]>gap:
         pc=jump
         gap=gc[j-1]-gc[j]    
-  print 'pc='+str(pc)
+  logger.info('pc=%f',pc)
   G=bn.get_Graph(pc,correlation=correlation)
-  print 'number of nodes in network at pc: '+str(G.number_of_nodes())
+  logger.info('number of nodes in network at pc: %i',G.number_of_nodes())
   cluster_list=nx.connected_components(G)
   edge_list=G.edges()
-  print 'number of clusters: '+str(len(cluster_list))
+  logger.info('number of clusters: %i',len(cluster_list))
   N=[len(x) for x in cluster_list]
   for i,nodelist in enumerate(cluster_list):
-    if N[i]>10:
-      print str(pc)+'  '+str(i)+', '+str(N[i])
+    if i<10:
+      logger.info('procesing cluster %i of mass %i',i,N[i])
+    else:
+      logger.debug('procesing cluster %i of mass %i',i,N[i])
     Gsub=bn.get_SubGraph(float(pc),nodelist,edge_list)
     A=numpy.zeros([N[i],3])
     pos=numpy.array([0,0,0,1])
