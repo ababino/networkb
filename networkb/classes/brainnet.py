@@ -15,6 +15,7 @@ class BrainNet():
                force_edgelist=False,force_percolation=False,
                correlation='both'):
     self.dir=directory
+    self.subject=os.path.basename(directory)
     self.name=name
     self.mask=mask
     self.func_dir=os.path.join(directory,'func')
@@ -28,6 +29,7 @@ class BrainNet():
     logger.addHandler(fh)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
+    logger.info(self.subject)
     if not os.path.exists(self.edgelist_file) or force_edgelist:
       logger.info('Building edgelist')
       self.gen_edgelist(min_th,ncores)
