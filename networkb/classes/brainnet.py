@@ -7,6 +7,8 @@ import networkx as nx
 import nibabel as nib
 import pylab as pl
 from networkx.readwrite import json_graph
+import logging
+logger = logging.getLogger('networkb.classes.brainnet')
 
 class BrainNet():
   def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,
@@ -21,14 +23,19 @@ class BrainNet():
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
     if not os.path.exists(self.network_dir):
       os.makedirs(self.network_dir)
+    fh=logging.FileHandler(self.network_dir+'/info.log')
+    fh.setLevel(logging.DEBUG)
+    logger.addHandler(fh)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
     if not os.path.exists(self.edgelist_file) or force_edgelist:
-      print 'Building edgelist '
+      logger.info('Building edgelist')
       self.gen_edgelist(min_th,ncores)
     self.min_th=min_th
     if (
     not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or 
     force_percolation):
-      print 'Percolating'      
+      logger.info('Percolating')   
       self.percolation_network(ncores,correlation=correlation)
 
     self.non_file=os.path.join(self.network_dir,'non.json')
@@ -100,7 +107,8 @@ class BrainNet():
             ind2rc[count]=(i,j,k)
             Dr[count,:]=v/pl.linalg.norm(v)
             count=count+1
-
+    
+    logger.info('number of nodes in scan: %i', count)
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
@@ -143,8 +151,7 @@ class BrainNet():
           elif correlation=='negative':
             if w<0:
               G.add_edge(int(s[0]),int(s[1]),weight=-w)
-      print 'number of nodes in network: '+str(G.number_of_nodes())
-      print 'number of nodes in scan: '+str(self.number_of_nodes())
+      logger.info('number of nodes in network: %i', G.number_of_nodes())
       mcs=max(int(0.001*G.number_of_nodes()),2)
       
       th=list(pl.arange(self.min_th,1,0.001))
@@ -391,7 +398,7 @@ class BrainNet():
     cluster_dic={}
     cc100=[G.nodes()]
     for i in range(len(th)):
-      print th[i]
+      logger.info('threshold: %f', th[i])
       [G,cc100]=self.prune(G,th[i],mcs,cc100,ncores)
       cluster_dic[str(th[i])]=cc100
       gc=self.percolation_data(gc,cc100,nn)
