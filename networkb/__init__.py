@@ -9,4 +9,4 @@ from networkb.ploters import *
 
 import pkg_resources
 
-__version__ = pkg_resources.get_distribution("networkb").version
+#__version__ = pkg_resources.get_distribution("networkb").version
