@@ -66,6 +66,10 @@ def window_correlation(x,y,w):
   return [stats.pearsonr(x[i:i+w],y[i:i+w])[0] for i in range(N)]
 
 def find_th_jumps(bn,max_clus=3):
+  """
+  Returns the thresholds where a jump occurs. A jump is defined as the 
+  join of the biggest cluster with, up to, the max_clus cluster.
+  """
   NON=bn.get_non()
   nodes_dic={}
   ths=[]
