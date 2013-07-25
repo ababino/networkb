@@ -9,6 +9,12 @@ import networkb, numpy, json
 from scipy import spatial
 
 def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):
+  """
+  Returns mass, maximun radio, maximun path length and average path 
+  length for all clusters at critical threshold. If op='first' the 
+  critical threshold is the nearest to 1 and if op='biggest' the 
+  threshold is the one with the biggest jump in the percolation curve.
+  """
   N=[]
   lmean=[]
   lmax=[]
@@ -41,12 +47,7 @@ def mass_path_distance(bn,N_clus,mcs,op='first',correlation='both'):
   cluster_list=nx.connected_components(G)
   edge_list=G.edges()
   print 'number of clusters: '+str(len(cluster_list))
-  #cluster_list=bn.get_cluster_dic()[pc]
   N=[len(x) for x in cluster_list]
-  """
-  cluster_list=networkb.define_clusters(bn,jump_size,mcs)
-  N=[len(x[1]) for x in cluster_list]    
-  """
   for i,nodelist in enumerate(cluster_list):
     if N[i]>10:
       print str(pc)+'  '+str(i)+', '+str(N[i])
