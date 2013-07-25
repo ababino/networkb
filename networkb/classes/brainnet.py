@@ -360,8 +360,8 @@ class BrainNet():
           if set(dat['cc']).issuperset(set(cc100[j])) and dat['th']==th_old:
             NON.add_edge(node,n)
         if nx.degree(NON,n)==0 and check:
-          print ('ojo ('+str(n)+', '+str(len(cc100[j]))+', th='+str(th)+
-          ', th_old='+str(th_old)+')') 
+          logger.warn('node in NON without parent. (%i,%i,th=%f,th_old=%f)',
+                      n,len(cc100[j]),th,th_old)
         n=n+1
     
     cond=True
@@ -398,7 +398,7 @@ class BrainNet():
     cluster_dic={}
     cc100=[G.nodes()]
     for i in range(len(th)):
-      logger.info('threshold: %f', th[i])
+      logger.debug('threshold: %f', th[i])
       [G,cc100]=self.prune(G,th[i],mcs,cc100,ncores)
       cluster_dic[str(th[i])]=cc100
       gc=self.percolation_data(gc,cc100,nn)
