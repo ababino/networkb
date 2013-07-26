@@ -2,7 +2,11 @@ from networkb.classes.matrixcounter import Matrix_Counter
 from networkb.algorithms.mass_path_distance import mass_path_distance
 from networkb.algorithms.weak_link_distribution import weak_link_distribution
 from glob import glob
-import json, pprocess, itertools, os.path, os
+import json 
+import pprocess 
+import itertools as itt
+import os.path
+import os
 import networkx as nx
 import nibabel as nib
 import pylab as pl
@@ -85,7 +89,6 @@ class BrainNet():
     D=img.get_data()
     network_dir=os.path.join(self.dir,'network')
     listname=os.path.join(network_dir,'edgelist.dat')
-    ind2rcstr=os.path.join(network_dir,'node2voxel.json')
   
     sh=D.shape  
     if self.mask!=None:
@@ -98,34 +101,32 @@ class BrainNet():
       M=pl.ones((sh[0],sh[1],sh[2]))      
     
     Dr=pl.zeros((sh[0]*sh[1]*sh[2],sh[3]))  
-    ind2rc={}
+    node2voxel={}
     count=0
-  
-    for i in range(sh[0]):
-      for j in range(sh[1]):
-        for k in range(sh[2]):
-          if M[i,j,k]!=0 and any(D[i,j,k,:]!=0):
-            v=D[i,j,k,:]-pl.mean(D[i,j,k,:])
-            ind2rc[count]=(i,j,k)
-            Dr[count,:]=v/pl.linalg.norm(v)
-            count=count+1
+    
+    for (i,j,k) in itt.product(range(sh[0]),range(sh[1]),range(sh[2])):
+      if M[i,j,k]!=0 and any(D[i,j,k,:]!=0):
+        v=D[i,j,k,:]-pl.mean(D[i,j,k,:])
+        node2voxel[count]=(i,j,k)
+        Dr[count,:]=v/pl.linalg.norm(v)
+        count=count+1
     
     logger.info('number of nodes in scan: %i', count)
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
     
-    f=open(ind2rcstr,'w')
-    json.dump(ind2rc,f)
+    f=open(os.path.join(network_dir,'node2voxel.json'),'w')
+    json.dump(node2voxel,f)
     f.close()
     
     ntest=Drt.shape[1]
-    T=[th for i in xrange(ntest)]
+    T=itt.repeat(th)
     I=Matrix_Counter(Drt,1,ntest)
   
     queue = pprocess.Queue(limit=ncores)
     calc = queue.manage(pprocess.MakeParallel(self.correlate))
-    for inp in itertools.izip(Dr,I,xrange(ntest),T):
+    for inp in itt.izip(Dr,I,xrange(ntest),T):
       calc(inp)
   
     f=open(listname,'w')
@@ -135,6 +136,16 @@ class BrainNet():
     f.close()
     return
 
+  def correlate(self,(v,M,i,th)):
+    out=[]
+    if not(M is None) and not(i is None):  
+      C=pl.dot(v,M)
+      l=pl.absolute(C)>th    
+      Csub=C[l]
+      ind=pl.find(l)
+      for j,c in enumerate(Csub):
+        out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
+    return out  
 
   def percolation_network(self,ncores,correlation='both'):
     if correlation not in ['negative','positive','both']:
@@ -300,20 +311,6 @@ class BrainNet():
             count=count+1
     return count    
 
-  def correlate(self,(v,M,i,th)):
-    out=[]
-    if not(M is None) and not(i is None):  
-      C=pl.dot(v,M)
-      l=pl.absolute(C)>th    
-      Csub=C[l]
-      ind=pl.find(l)
-      for j,c in enumerate(Csub):
-        out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
-    return out  
-
-
-
-
   def prune(self,G,th,mcs,cc_old,ncores):
     """
     Prunes G and returns a list of clusters biggers than mcs 
@@ -408,5 +405,9 @@ class BrainNet():
       
     return (gc,NON,cluster_dic)  
 
-
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return itt.izip_longest(fillvalue=fillvalue, *args)
 
