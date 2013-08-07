@@ -243,10 +243,10 @@ class BrainNet():
 
   def get_weak_link_distribution(self,force=False):
     if os.path.exists(self.weak_link_distribution_file) and not force:
-      (cond,wl,bm,pos)=json.load(open(self.weak_link_distribution_file))
+      d=json.load(open(self.weak_link_distribution_file))
     else:
-      (cond,wl,bm,pos)=weak_link_distribution(self)
-    return (cond,wl,bm,pos)
+      d=weak_link_distribution(self)
+    return d
     
   def get_SubGraph(self,th,nodelist,edge_list=None,correlation='both'):
     if correlation not in ['negative','positive','both']:

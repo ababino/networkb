@@ -4,74 +4,32 @@ Created on Wed May 15 20:09:59 2013
 
 @author: andres
 """
-from networkb.algorithms.utils import nodedistance, find_peaks, window_correlation
-import json, scipy.stats, numpy, pprocess
+import networkb
+import networkx
+import itertools
+import json
 
-def parallel_bimodal(X):
-  N=X[1][3]
-  temp=window_correlation(X[1][0],X[1][1],X[1][2]) 
-  (count,bins)=numpy.histogram(temp,bins=20,normed=True)
-  ku=scipy.stats.kurtosis(temp, axis=0, fisher=True, bias=True)
-  sk=scipy.stats.skew(temp, axis=0, bias=True)
-  bimodal_coeff=(sk**2+1) / ( ku + (3*(N-1)**2) / ((N-2)*(N-3)) )
-  return (X[0],bimodal_coeff)
-
-def weak_link_distribution(bn,ncores=4):
-  voxels=bn.get_node2voxel()
-  for key in voxels:
-    voxels[key].append(1)
-  
-  D=bn.get_img_data()
-  affine=bn.get_affine()
-  gc=bn.get_gc()
-  th=bn.get_th()
-
-  peaks=find_peaks(th,gc)
-  (th1,temp)=max(peaks,key=lambda x:x[1])
-  i=peaks.index((th1,temp))
-  if i>0:
-    th2=(peaks[i-1][0]+th1)/2
-  elif len(peaks)>i+1:
-    th1=peaks[i+1][0]
-    th2=(peaks[i][0]+th1)/2
-  else:
-    return (False,None,None,None)
-  th2=0.6
-  print '(th2,th1)=('+str(th2)+', '+str(th1)+')'
-  G=bn.get_Graph(th2,th_up=th1)
-  wl=[]
-  wl=[(n1,n2) for (n1,n2) in G.edges_iter()]       
-  pos=[nodedistance(affine,voxels,str(n1),str(n2)) for (n1,n2) in wl]
-  n=20
-  N=D.shape[3]-n
-  bm=[0  for x in range(len(wl))]
-  par_in=[]
-  for (n1,n2) in wl:
-    [i,j,k]=voxels[str(n1)][0:3]
-    s1=D[i,j,k,:]
-    [i,j,k]=voxels[str(n2)][0:3]
-    s2=D[i,j,k,:]
-    par_in.append((s1,s2,n,N))
-
-  queue = pprocess.Queue(limit=ncores)
-  calc = queue.manage(pprocess.MakeParallel(parallel_bimodal))
-  for (i,x) in enumerate(par_in):
-    calc((i,x))
-  for (i,bmc) in queue:
-    bm[i]=bmc
-  """
-  for (n1,n2) in wl:
-    [i,j,k]=voxels[str(n1)][0:3]
-    s1=D[i,j,k,:]
-    [i,j,k]=voxels[str(n2)][0:3]
-    s2=D[i,j,k,:]
-    temp=window_correlation(s1,s2,n) 
-    (count,bins)=numpy.histogram(temp,bins=20,normed=True)
-    ku=scipy.stats.kurtosis(temp, axis=0, fisher=True, bias=True)
-    sk=scipy.stats.skew(temp, axis=0, bias=True)
-    bimodal_coeff=(sk**2+1) / ( ku + (3*(N-1)**2) / ((N-2)*(N-3)) )
-    bm.append(bimodal_coeff)    
-  del D
-  """
-  json.dump((True,wl,bm,pos),open(bn.weak_link_distribution_file,'w'))
-  return (True,wl,bm,pos)
+def weak_link_distribution(bn,N_clus=2):
+  jumps=networkb.find_th_jumps(bn,N_clus)
+  if len(jumps)==0:
+    return None
+  pc=max(jumps)
+  G=bn.get_Graph(pc,correlation='positive')
+  cluster_list=[x for x in networkx.connected_components(G) if x>0]
+  if len(cluster_list)<2:
+    return None
+  thmin=(jumps[jumps.index(pc)-1]+pc)/2
+  H=bn.get_Graph(thmin,th_up=pc,correlation='positive')
+  if H.number_of_edges()<1:
+    return None
+  H=networkx.subgraph(H,itertools.chain.from_iterable(cluster_list))
+  if H.number_of_edges()<1:
+    return None
+  iterator=itertools.product(H.edges_iter(),cluster_list)
+  for_remove=[(n1,n2) for ((n1,n2),c) in iterator if n1 in c and n2 in c]
+  H.remove_edges_from(for_remove)  
+  d=[]  
+  for e in H.edges_iter():
+    d.append(bn.nodedistance(e))
+  json.dump(d,open(bn.weak_link_distribution_file,'w'))
+  return d
