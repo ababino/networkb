@@ -10,6 +10,8 @@ import os
 import networkx as nx
 import nibabel as nib
 import pylab as pl
+import numpy
+from scipy import spatial
 from networkx.readwrite import json_graph
 import logging
 logger = logging.getLogger('networkb.classes.brainnet')
@@ -26,6 +28,8 @@ class BrainNet():
     self.network_dir=os.path.join(directory,'network')
     self.edgelist_file=os.path.join(self.network_dir,'edgelist.dat')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
+    self.affine=self.get_affine()
+    
     if not os.path.exists(self.network_dir):
       os.makedirs(self.network_dir)
     fh=logging.FileHandler(self.network_dir+'/info.log')
@@ -38,6 +42,7 @@ class BrainNet():
       logger.info('Building edgelist')
       self.gen_edgelist(min_th,ncores)
     self.min_th=min_th
+    self.node2voxel=self.get_node2voxel()
     if (
     not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or 
     force_percolation):
@@ -120,13 +125,12 @@ class BrainNet():
     json.dump(node2voxel,f)
     f.close()
     
-    ntest=Drt.shape[1]
     T=itt.repeat(th)
-    I=Matrix_Counter(Drt,1,ntest)
+    I=Matrix_Counter(Drt,1,count)
   
     queue = pprocess.Queue(limit=ncores)
     calc = queue.manage(pprocess.MakeParallel(self.correlate))
-    for inp in itt.izip(Dr,I,xrange(ntest),T):
+    for inp in itt.izip(Dr,I,xrange(count),T):
       calc(inp)
   
     f=open(listname,'w')
@@ -404,6 +408,21 @@ class BrainNet():
       NON=self.update_NON(NON,cc100,th[i],th[i-1])#[:min(10,len(cc100))]
       
     return (gc,NON,cluster_dic)  
+
+  def nodedistance(self,(n1,n2)):
+    """
+    node distance in cm. (en general)
+    """
+    ind1=self.node2voxel[str(n1)]
+    ind2=self.node2voxel[str(n2)]
+    if len(ind1)==3:
+      ind1.append(1)
+    if len(ind2)==3:
+      ind2.append(1)
+    v1=numpy.dot(self.affine, numpy.transpose(ind1))[0:3]
+    v2=numpy.dot(self.affine, numpy.transpose(ind2))[0:3]
+    d=spatial.distance.euclidean(v1,v2)
+    return d
 
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
