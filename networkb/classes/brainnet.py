@@ -241,7 +241,7 @@ class BrainNet():
       clusters_properties=mass_path_distance(self,N_clus,op,correlation)
     return clusters_properties
 
-  def get_weak_link_distribution(self,force=False):
+  def get_weak_link_distribution(self,force=False,N_clus=2):
     if os.path.exists(self.weak_link_distribution_file) and not force:
       d=json.load(open(self.weak_link_distribution_file))
     else:
