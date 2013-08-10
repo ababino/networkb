@@ -245,7 +245,7 @@ class BrainNet():
     if os.path.exists(self.weak_link_distribution_file) and not force:
       d=json.load(open(self.weak_link_distribution_file))
     else:
-      d=weak_link_distribution(self,Nclus=Nclus,mcs=mcs)
+      d=weak_link_distribution(self,N_clus=N_clus,mcs=mcs)
     return d
     
   def get_SubGraph(self,th,nodelist,edge_list=None,correlation='both'):
