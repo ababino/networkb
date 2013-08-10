@@ -10,6 +10,7 @@ from matplotlib.widgets import Slider, RadioButtons, CheckButtons
 import nibabel as nib
 
 def plot_clusters_in_brain(bn,cluster_list,actives=[True,False,False]):
+  colors=[[1,0,0],[0,1,0],[0,0,1]]  
   node2voxel=bn.get_node2voxel()
   img=nib.load(bn.mask)
   D=img.get_data()
@@ -20,7 +21,7 @@ def plot_clusters_in_brain(bn,cluster_list,actives=[True,False,False]):
     if actives[ii]:
       for node in cluster_list[ii]:
         (i,j,k)=node2voxel[str(node)]
-        M[i,j,k,:]=[1,0,0]
+        M[i,j,k,:]=colors[ii]
   plt.figure()
   plt.subplot(221)
   j0 = 50
@@ -54,7 +55,7 @@ def plot_clusters_in_brain(bn,cluster_list,actives=[True,False,False]):
   sk.on_changed(update)
   rax = plt.axes([0.025, 0.5, 0.1, 0.15], axisbg=axcolor)
   check = CheckButtons(rax, ('0', '1', '2'), actives=actives)
-  colors=[[1,0,0],[0,1,0],[0,0,1]]  
+
   def showcluster(label):
     i0=int(si.val)
     j0=int(sj.val)
