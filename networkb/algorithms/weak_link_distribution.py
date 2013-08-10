@@ -25,9 +25,6 @@ def weak_link_distribution(bn,N_clus=2):
   H=networkx.subgraph(H,itertools.chain.from_iterable(cluster_list))
   if H.number_of_edges()<1:
     return []
-  iterator=itertools.product(H.edges_iter(),cluster_list)
-  for_remove=[(n1,n2) for ((n1,n2),c) in iterator if n1 in c and n2 in c]
-  H.remove_edges_from(for_remove)  
   d=[]  
   for e in H.edges_iter():
     d.append(bn.nodedistance(e))
