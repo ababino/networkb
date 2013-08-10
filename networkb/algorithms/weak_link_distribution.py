@@ -9,13 +9,13 @@ import networkx
 import itertools
 import json
 
-def weak_link_distribution(bn,N_clus=2):
+def weak_link_distribution(bn,N_clus=2,mcs=0):
   jumps=networkb.find_th_jumps(bn,N_clus)
   if len(jumps)==0:
     return []
   pc=max(jumps)
   G=bn.get_Graph(pc,correlation='positive')
-  cluster_list=[x for x in networkx.connected_components(G) if x>0]
+  cluster_list=[x for x in networkx.connected_components(G) if x>mcs]
   if len(cluster_list)<2:
     return []
   thmin=(jumps[jumps.index(pc)-1]+pc)/2
