@@ -6,34 +6,47 @@ Created on Wed Jul 24 16:22:45 2013
 """
 import pylab
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, RadioButtons, CheckButtons
+from matplotlib.widgets import Slider, CheckButtons
 import nibabel as nib
+import os
+import numpy
 
-def plot_clusters_in_brain(bn,cluster_list,actives=[True,False,False]):
+def plot_clusters_in_brain(bn,background,cluster_list,actives=[True,False,False]):
+  if len(cluster_list)<3:
+    print 'just '+str(len(cluster_list))+ ' cluster'
   colors=[[1,0,0],[0,1,0],[0,0,1]]  
   node2voxel=bn.get_node2voxel()
   img=nib.load(bn.mask)
+  imgB = nib.load(background)
   D=img.get_data()
   sh=D.shape
   M=pylab.zeros((sh[0],sh[1],sh[2],3))
-  M[D>0,:]=pylab.ones_like(M[D>0,:])
+  B=M
+  B0=imgB.get_data().astype(numpy.float32, copy=False) 
+  #B0img.get_data().astype(numpy.float32, copy=False)
+  B[:,:,:,0]=(B0-B0.min())/(B0.max()-B0.min())
+  B[:,:,:,1]=B[:,:,:,0]
+  B[:,:,:,2]=B[:,:,:,0]
+  M=B  
+  #M[D>0,:]=pylab.ones_like(M[D>0,:])
   for ii in range(len(actives)):
     if actives[ii]:
-      for node in cluster_list[ii]:
-        (i,j,k)=node2voxel[str(node)]
-        M[i,j,k,:]=colors[ii]
+      if len(cluster_list)>ii:
+        for node in cluster_list[ii]:
+          (i,j,k)=node2voxel[str(node)]
+          M[i,j,k,:]=[B[i,j,k,l]*colors[ii][l] for l in range(3)]
   plt.figure()
   plt.subplot(221)
-  j0 = 50
-  lj = plt.imshow(M[:,j0,:,:].swapaxes(0,1))
+  j0 = round(M.shape[1]*0.5)
+  lj = plt.imshow(M[:,j0,:,:].swapaxes(0,1),interpolation='None')
   plt.axis([0, sh[0], 0, sh[2]])
   plt.subplot(222)
-  i0 = 50
-  li = plt.imshow(M[i0,:,:,:].swapaxes(0,1))
+  i0 = round(M.shape[0]*0.5)
+  li = plt.imshow(M[i0,:,:,:].swapaxes(0,1),interpolation='None')
   plt.axis([0, sh[1], 0, sh[2]])
   plt.subplot(223)
-  k0 = 50
-  lk = plt.imshow(M[:,:,k0,:].swapaxes(0,1))
+  k0 = round(M.shape[2]*0.5)
+  lk = plt.imshow(M[:,:,k0,:].swapaxes(0,1),interpolation='None')
   plt.axis([0, sh[0], 0, sh[1]])
   axcolor = 'lightgoldenrodyellow'
   axi = plt.axes([0.55, 0.3, 0.4, 0.03], axisbg=axcolor)
@@ -60,6 +73,7 @@ def plot_clusters_in_brain(bn,cluster_list,actives=[True,False,False]):
     i0=int(si.val)
     j0=int(sj.val)
     k0=int(sk.val)
+    M=B
     for node in cluster_list[int(label)]:
       (i,j,k)=node2voxel[str(node)]
       if all(M[i,j,k,:]==colors[int(label)]):

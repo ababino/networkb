@@ -19,12 +19,16 @@ logger = logging.getLogger('networkb.classes.brainnet')
 class BrainNet():
   def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,
                force_edgelist=False,force_percolation=False,
-               correlation='both'):
+               correlation='both',func_dir='func'):
     self.dir=directory
     self.subject=os.path.basename(directory)
+    self.func_dir=os.path.join(directory,func_dir)
     self.name=name
-    self.mask=mask
-    self.func_dir=os.path.join(directory,'func')
+    if mask!=None:
+      if os.path.isabs(mask):
+        self.mask=mask
+      else:
+        self.mask=os.path.join(self.func_dir,mask)
     self.network_dir=os.path.join(directory,'network')
     self.edgelist_file=os.path.join(self.network_dir,'edgelist.dat')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
@@ -169,7 +173,7 @@ class BrainNet():
             if w<0:
               G.add_edge(int(s[0]),int(s[1]),weight=-w)
       logger.info('number of nodes in network: %i', G.number_of_nodes())
-      mcs=max(int(0.001*G.number_of_nodes()),2)
+      mcs=2#max(int(0.001*G.number_of_nodes()),2)
       
       th=list(pl.arange(self.min_th,1,0.001))
       (gc,NON,cluster_dic)=self.percolation(G,th,mcs,ncores)
@@ -326,6 +330,7 @@ class BrainNet():
 
     cc=nx.connected_components(G)
     cc100=[cc[j] for j in range(len(cc)) if len(cc[j])>=mcs]
+    cc100=[cc100[j] for j in range(min(len(cc100),10))]    
 
     #####remove small clusters#######
     nodes=set(G.nodes())
