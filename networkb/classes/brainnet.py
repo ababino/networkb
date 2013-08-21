@@ -94,13 +94,7 @@ class BrainNet():
     that will be save to the file.
     """
     logger.info('loading image')
-    img_dir=os.path.join(self.func_dir,self.name)
-    if os.path.isfile(img_dir):
-      logger.info('one file image')
-      img = nib.load(img_dir)
-    elif os.path.isdir(img_dir):
-      logger.info('multiple images')
-      img=nib.funcs.concat_images(glob(os.path.join(img_dir,'*')))      
+    img=self.get_img()
     D=img.get_data()
     network_dir=os.path.join(self.dir,'network')
     listname=os.path.join(network_dir,'edgelist.dat')
