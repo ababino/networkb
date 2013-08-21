@@ -93,13 +93,20 @@ class BrainNet():
     number of cores to use in the calculation. "th" is the minimun threshold 
     that will be save to the file.
     """
+    logger.info('loading image')
     img_dir=os.path.join(self.func_dir,self.name)
-    img = nib.load(img_dir)
+    if os.path.isfile(img_dir):
+      logger.info('one file image')
+      img = nib.load(img_dir)
+    elif os.path.isdir(img_dir):
+      logger.info('multiple images')
+      img=nib.funcs.concat_images(glob(os.path.join(img_dir,'*')))      
     D=img.get_data()
     network_dir=os.path.join(self.dir,'network')
     listname=os.path.join(network_dir,'edgelist.dat')
   
     sh=D.shape  
+    logger.info('Data shape=(%i,%i,%i,%i)',sh[0],sh[1],sh[2],sh[3])
     if self.mask!=None:
       if os.path.isabs(self.mask):
         img2 = nib.load(self.mask)
