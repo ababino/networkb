@@ -215,16 +215,22 @@ class BrainNet():
     return node2voxel
 
   def get_affine(self):
-    img=nib.load(os.path.join(self.func_dir,self.name))
+    img=self.get_img()
     affine=img.get_affine()
     return affine    
 
   def get_img(self):
-    img=nib.load(os.path.join(self.func_dir,self.name))
+    img_dir=os.path.join(self.func_dir,self.name)
+    if os.path.isfile(img_dir):
+      logger.info('one file image')
+      img = nib.load(img_dir)
+    elif os.path.isdir(img_dir):
+      logger.info('multiple images')
+      img=nib.funcs.concat_images(glob(os.path.join(img_dir,'*'))) 
     return img    
 
   def get_img_data(self):
-    img=nib.load(os.path.join(self.func_dir,self.name))
+    img=self.get_img()
     D=img.get_data()
     return D    
     
