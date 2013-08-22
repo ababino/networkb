@@ -3,7 +3,7 @@ from networkb.algorithms.mass_path_distance import mass_path_distance
 from networkb.algorithms.weak_link_distribution import weak_link_distribution
 from glob import glob
 import json 
-import pprocess 
+import pprocess
 import itertools as itt
 import os.path
 import os
@@ -94,28 +94,18 @@ class BrainNet():
     that will be save to the file.
     """
     logger.info('loading image')
-    img=self.get_img()
-    D=img.get_data()
+    M=self.get_mask_data()
+    D=self.reshape_data2mask()
+    sh=D.shape  
     network_dir=os.path.join(self.dir,'network')
     listname=os.path.join(network_dir,'edgelist.dat')
-  
-    sh=D.shape  
-    logger.info('Data shape=(%i,%i,%i,%i)',sh[0],sh[1],sh[2],sh[3])
-    if self.mask!=None:
-      if os.path.isabs(self.mask):
-        img2 = nib.load(self.mask)
-      else:
-        img2 = nib.load(os.path.join(self.func_dir,self.mask))
-      M=img2.get_data()
-    else:
-      M=pl.ones((sh[0],sh[1],sh[2]))      
-    
+
     Dr=pl.zeros((sh[0]*sh[1]*sh[2],sh[3]))  
     node2voxel={}
     count=0
     
     for (i,j,k) in itt.product(range(sh[0]),range(sh[1]),range(sh[2])):
-      if M[i,j,k]!=0 and any(D[i,j,k,:]!=0):
+      if M[i,j,k]!=0 and any(D[i,j,k,:]!=D[i,j,k,0]):
         v=D[i,j,k,:]-pl.mean(D[i,j,k,:])
         node2voxel[count]=(i,j,k)
         Dr[count,:]=v/pl.linalg.norm(v)
@@ -130,9 +120,11 @@ class BrainNet():
     json.dump(node2voxel,f)
     f.close()
     
+    
     T=itt.repeat(th)
     I=Matrix_Counter(Drt,1,count)
-  
+    
+    """
     queue = pprocess.Queue(limit=ncores)
     calc = queue.manage(pprocess.MakeParallel(self.correlate))
     for inp in itt.izip(Dr,I,xrange(count),T):
@@ -141,8 +133,22 @@ class BrainNet():
     f=open(listname,'w')
     for d in queue:
       for s in d:
+        print s
         f.write(s)
     f.close()
+    """
+
+    i=0
+    f=open(listname,'w')
+    for inp in itt.izip(Dr,I,xrange(count),T):
+      if i % 1000 ==0:
+        logger.info('nodes: %i', i)
+      out=self.correlate(inp)
+      for s in out:
+        f.write(s)
+      i=i+1
+    f.close()
+
     return
 
   def correlate(self,(v,M,i,th)):
@@ -155,7 +161,8 @@ class BrainNet():
       for j,c in enumerate(Csub):
         out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
     return out  
-
+  
+  
   def percolation_network(self,ncores,correlation='both'):
     if correlation not in ['negative','positive','both']:
       raise Exception(
@@ -213,16 +220,54 @@ class BrainNet():
     affine=img.get_affine()
     return affine    
 
+  def reshape_data2mask(self):
+    M=self.get_mask_data()
+    D=self.get_img_data()
+    sh=D.shape
+    if any([M.shape[i]!=sh[i] for i in [0,1,2]]):
+      logger.info('Fill out of bounding box')
+      img2=self.get_mask()      
+      A_mask=img2.get_affine()
+      A=self.get_affine()
+      temp=numpy.linalg.inv(A_mask)-numpy.linalg.inv(A)
+      (i0,j0,k0)=temp.round().astype('int32')[0:3,3]
+      logger.info('Shift (%i,%i,%i)',i0,j0,k0)
+      temp=pl.zeros((M.shape[0],M.shape[1],M.shape[2],sh[3]))
+      temp[i0:i0+sh[0],j0:j0+sh[1],k0:k0+sh[2]]=D
+      D=temp
+    return D
+
+  def get_mask_data(self):
+    D=self.get_img_data()
+    sh=D.shape    
+    if self.mask!=None:
+      if os.path.isabs(self.mask):
+        img2 = nib.load(self.mask)
+      else:
+        img2 = nib.load(os.path.join(self.func_dir,self.mask))
+      M=img2.get_data()
+    else:
+      M=pl.ones((sh[0],sh[1],sh[2]))
+    return M
+    
   def get_img(self):
     img_dir=os.path.join(self.func_dir,self.name)
     if os.path.isfile(img_dir):
       logger.info('one file image')
       img = nib.load(img_dir)
     elif os.path.isdir(img_dir):
-      logger.info('multiple images')
-      img=nib.funcs.concat_images(glob(os.path.join(img_dir,'*'))) 
+      files=sorted(glob(os.path.join(img_dir,'*.img')))
+      logger.info('multiple images. len(files)=%i',len(files))      
+      img=nib.funcs.concat_images(files)
     return img    
 
+  def get_mask(self):
+    if os.path.isabs(self.mask):
+      img = nib.load(self.mask)
+    else:
+      img = nib.load(os.path.join(self.func_dir,self.mask))
+    return img
+  
   def get_img_data(self):
     img=self.get_img()
     D=img.get_data()
@@ -306,8 +351,8 @@ class BrainNet():
     return G
   
   def number_of_nodes(self):
-    img_dir=os.path.join(self.func_dir,self.name)
-    img = nib.load(img_dir)
+    #img_dir=os.path.join(self.func_dir,self.name)
+    img = self.get_img()#nib.load(img_dir)
     D=img.get_data()
     sh=D.shape  
     if self.mask!=None:
