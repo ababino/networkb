@@ -11,6 +11,7 @@ import networkx as nx
 import nibabel as nib
 import pylab as pl
 import numpy
+import scipy
 from scipy import spatial
 from networkx.readwrite import json_graph
 import logging
@@ -122,7 +123,7 @@ class BrainNet():
     
     
     T=itt.repeat(th)
-    I=Matrix_Counter(Drt,1,count)
+    #I=Matrix_Counter(Drt,1,count)
     
     """
     queue = pprocess.Queue(limit=ncores)
@@ -137,7 +138,8 @@ class BrainNet():
         f.write(s)
     f.close()
     """
-
+    
+    """
     i=0
     f=open(listname,'w')
     for inp in itt.izip(Dr,I,xrange(count),T):
@@ -148,7 +150,23 @@ class BrainNet():
         f.write(s)
       i=i+1
     f.close()
-
+    """
+    
+    #n=Drt.shape[0]
+    #IDrt=grouper(Drt, n, fillvalue=None)
+    #iterdata=itt.izip(Dr,IDrt,T)
+    #temp1,temp2,temp3=iterdata.next()
+    n=1000
+    S=self.correlate2((Dr[0:n,:],Drt,th))    
+    i=1    
+    for v in grouper(Dr[n+1:,:], n, fillvalue=None):
+      v=pl.array([x for x in v if x!=None])
+      if i % 1 ==0:
+        logger.info('nodes: %i', i)
+      Snew=self.correlate2((v,Drt,th))
+      S=scipy.sparse.hstack([S,Snew])
+      i=i+1
+    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',S)
     return
 
   def correlate(self,(v,M,i,th)):
@@ -161,7 +179,17 @@ class BrainNet():
       for j,c in enumerate(Csub):
         out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
     return out  
-  
+
+  def correlate2(self,(v,M,th)):
+    SC=[]
+    if not(M is None):
+      try:
+        C=pl.dot(v,M,out=v)
+      except:
+        C=pl.dot(v,M)        
+      C[pl.absolute(C)<=th]=0
+      SC=scipy.sparse.csc_matrix(C)
+    return SC    
   
   def percolation_network(self,ncores,correlation='both'):
     if correlation not in ['negative','positive','both']:
