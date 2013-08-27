@@ -34,7 +34,7 @@ class BrainNet():
     self.edgelist_file=os.path.join(self.network_dir,'edgelist.dat')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
     self.affine=self.get_affine()
-    
+    self.min_th=min_th
     if not os.path.exists(self.network_dir):
       os.makedirs(self.network_dir)
     fh=logging.FileHandler(self.network_dir+'/info.log')
@@ -45,8 +45,8 @@ class BrainNet():
     logger.info(self.subject)
     if not os.path.exists(self.edgelist_file) or force_edgelist:
       logger.info('Building edgelist')
-      self.gen_edgelist(min_th,ncores)
-    self.min_th=min_th
+      self.gen_edgelist(ncores)
+    
     self.node2voxel=self.get_node2voxel()
     if (
     not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or 
@@ -87,7 +87,7 @@ class BrainNet():
 #===========================================================================
 # Generate edge list
 #===========================================================================
-  def gen_edgelist(self,th,ncores):
+  def gen_edgelist(self,ncores):
     """
     Gennerates a list of correlations among voxel's time series of file 
     "filename". "mask" is the mask file for "filename". "ncores" is the 
@@ -116,13 +116,14 @@ class BrainNet():
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
+    self.Drt=Drt
     
     f=open(os.path.join(network_dir,'node2voxel.json'),'w')
     json.dump(node2voxel,f)
     f.close()
     
     
-    T=itt.repeat(th)
+    #T=itt.repeat(self.min_th)
     #I=Matrix_Counter(Drt,1,count)
     
     """
@@ -157,16 +158,16 @@ class BrainNet():
     #iterdata=itt.izip(Dr,IDrt,T)
     #temp1,temp2,temp3=iterdata.next()
     n=1000
-    S=self.correlate2((Dr[0:n,:],Drt,th))    
+    S=self.correlate2(Dr[0:n,:])    
     i=1    
     for v in grouper(Dr[n+1:,:], n, fillvalue=None):
-      v=pl.array([x for x in v if x!=None])
       if i % 1 ==0:
         logger.info('nodes: %i', i)
-      Snew=self.correlate2((v,Drt,th))
-      S=scipy.sparse.hstack([S,Snew])
-      i=i+1
+      Snew=self.correlate2(v)
+      S=scipy.sparse.vstack([S,Snew])
+      i=i+n
     scipy.io.mmwrite(listname.split('.')[0]+'.mtx',S)
+
     return
 
   def correlate(self,(v,M,i,th)):
@@ -180,15 +181,15 @@ class BrainNet():
         out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
     return out  
 
-  def correlate2(self,(v,M,th)):
+  def correlate2(self,v):
     SC=[]
-    if not(M is None):
-      try:
-        C=pl.dot(v,M,out=v)
-      except:
-        C=pl.dot(v,M)        
-      C[pl.absolute(C)<=th]=0
-      SC=scipy.sparse.csc_matrix(C)
+    try:
+      C=numpy.dot(v,self.Drt,out=v)
+    except:
+      print 'ups'
+      C=numpy.dot(v,self.Drt)        
+    C[pl.absolute(C)<=self.min_th]=0
+    SC=scipy.sparse.csc_matrix(C)
     return SC    
   
   def percolation_network(self,ncores,correlation='both'):
@@ -513,5 +514,6 @@ def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
-    return itt.izip_longest(fillvalue=fillvalue, *args)
+    v=itt.izip_longest(fillvalue=fillvalue, *args)
+    return pl.array([x for x in v if x!=None])
 
