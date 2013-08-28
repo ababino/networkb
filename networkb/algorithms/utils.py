@@ -4,9 +4,11 @@ Created on Wed May 15 20:11:59 2013
 
 @author: andres
 """
-import numpy, networkx
+import numpy
+import networkx
 from scipy import spatial
 from scipy import stats
+import scipy
 
 def find_peaks(th,gc):
   peaks=[]
@@ -101,7 +103,13 @@ def find_th_jumps(bn,max_clus=3):
   jumps=sorted([thresholds[thresholds.index(x)+1] for x in jumps])
   return jumps
     
-    
+def correlate2((v,M),count,th):
+  if not(M is None):
+    C=numpy.zeros((1,count))
+    C[count:]=numpy.dot(v,M)
+    C[numpy.absolute(C)<=th]=0
+    SC=scipy.sparse.csc_matrix(C)
+  return SC      
     
 
 

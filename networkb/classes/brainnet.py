@@ -1,9 +1,11 @@
 from networkb.classes.matrixcounter import Matrix_Counter
 from networkb.algorithms.mass_path_distance import mass_path_distance
 from networkb.algorithms.weak_link_distribution import weak_link_distribution
+from networkb.algorithms import utils
 from glob import glob
 import json 
 import pprocess
+from multiprocessing import Pool
 import itertools as itt
 import os.path
 import os
@@ -14,7 +16,6 @@ import numpy
 import scipy
 from scipy import spatial
 from networkx.readwrite import json_graph
-#from IPython.parallel import Client
 import logging
 logger = logging.getLogger('networkb.classes.brainnet')
 
@@ -114,39 +115,58 @@ class BrainNet():
         Dr[count,:]=v/pl.linalg.norm(v)
         count=count+1
     
+    self.count=count
     logger.info('number of nodes in scan: %i', count)
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
-    #self.Drt=Drt
+    self.Drt=Drt    
     
     f=open(os.path.join(self.network_dir,'node2voxel.json'),'w')
     json.dump(node2voxel,f)
     f.close()
     
-    
-    #T=itt.repeat(self.min_th)
-    I=Matrix_Counter(Drt,1,count)
-    
-    results = pprocess.pmap(self.correlate, itt.izip(Dr,I,xrange(count), limit=ncores)
+    #I=Matrix_Counter(Drt,1,count)
+    """
+    logger.info('Creating edgelist')
     queue = pprocess.Queue(limit=ncores)
     calc = queue.manage(pprocess.MakeParallel(self.correlate))
     for inp in itt.izip(Dr,I,xrange(count)):
       calc(inp)
-  
 
-    logger.info('Creating edgelist')
     temp=[]
     for d in queue:
       for s in d:
         temp.append(s)
 
-    logger.info('Saving edgelist')    
+    logger.info('Saving edgelist')
+    temp=sum(temp,[])
     f=open(listname,'w')
-    for s in temp:
+    for s in temp:    
       f.write(s)
     f.close()
 
+    logger.info('Creating edgelist')
+    p=Pool(4)
+    f=lambda x,y=count,z=self.min_th : utils.correlate2(x,y,z)
+    secuence=itt.izip(Dr,I)
+    SC_list = p.map(f, secuence)
+    logger.info('stack')        
+    S=scipy.sparse.vstack(SC_list)
+    logger.info('Saving edgelist')    
+    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',S)    
+    """
+    """
+    logger.info('Creating edgelist')
+    secuence=itt.izip(Dr,I,xrange(count))
+    results = pprocess.pmap(self.correlate, secuence, limit=ncores)
+    results=sum(results,[])    
+    logger.info('Saving edgelist. len(results)=%i',len(results))    
+    f=open(listname,'w')
+    for s in results:    
+      f.write(s)
+    f.close()
+    """
     
     """
     i=0
@@ -161,37 +181,45 @@ class BrainNet():
     f.close()
 
     
-    n=1000
+
     #try:
 
+
     logger.info('Parallel processing')
-    rc = Client()
-    dview = rc[:]
-    logger.info('number of cores %i',len(rc.ids))
-    sparse_matrixs = dview.map_sync(lambda x, y=Drt,z=self.min_th: correlate2(x,y,z),grouper(Dr,n))
+    sparse_matrixs = pprocess.pmap(self.correlate2, grouper(Dr,n), limit=ncores)
+    logger.info('stack')
     S=scipy.sparse.vstack(sparse_matrixs)
-    subdata=[(data,(row,col)) for ]    
-    
-    #except:
-    f= lambda x, y=Drt,z=self.min_th: correlate2(x,y,z)    
-    S=f(Dr[0:n,:])   
-    #rc = Client()
-    #dview = rc[:]  
+    subS=scipy.sparse.lil_matrix(S.shape)
+    logger.info('Filtering')
+    for i,row in enumerate(S.rows):
+      for j in row:
+        if j>i:
+          subS[i,j]=S[i,j]
+    logger.info('Saving')    
+    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',subS)   
+
+    """
+    n=2000
+    S=self.correlate2(Dr[0:n,:])   
     i=1+n
     n=1000  
     for v in grouper(Dr[n+1:,:], n):
       if i % 1 ==0:
         logger.info('nodes: %i', i)
-      #sparse_matrixs = dview.map_sync(f,grouper(v,4))  
-      Snew=f(v)
-      #logger.info('strack new')
-      #Snew=scipy.sparse.vstack(sparse_matrixs)
+      Snew=self.correlate2(v)
       logger.info('stack S')
       S=scipy.sparse.vstack([S,Snew])
       i=i+n
-    
-    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',S)
-    """
+    S=scipy.sparse.lil_matrix(S)
+    subS=scipy.sparse.lil_matrix(S.shape)
+    logger.info('Filtering')
+    for i,row in enumerate(S.rows):
+      for j in row:
+        if j>i:
+          subS[i,j]=S[i,j]
+    logger.info('Saving')    
+    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',subS)       
+
     return
 
   def correlate(self,(v,M,i)):
@@ -204,6 +232,17 @@ class BrainNet():
       for j,c in enumerate(Csub):
         out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
     return out    
+
+  def correlate2(self,v):
+    try:
+      A=numpy.zeros((v.shape[0],self.Drt))
+      C=numpy.dot(v,self.Drt,out=A)
+    except:
+      C=numpy.dot(v,self.Drt)      
+    C[pl.absolute(C)<=self.min_th]=0
+    SC=scipy.sparse.lil_matrix(C)
+    return SC  
+
   
   def percolation_network(self,ncores,correlation='both'):
     if correlation not in ['negative','positive','both']:
@@ -531,6 +570,9 @@ def grouper(iterable, n):
     I2=list(itt.imap(lambda v: pl.array([x for x in v if x!=None]),I))
     return I2
 
+
+
+"""
 def correlate2(v,Drt,th):
   SC=[]
   try:
@@ -541,3 +583,4 @@ def correlate2(v,Drt,th):
   C[pl.absolute(C)<=th]=0
   SC=scipy.sparse.csc_matrix(C)
   return SC  
+"""
