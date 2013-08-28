@@ -14,6 +14,7 @@ import numpy
 import scipy
 from scipy import spatial
 from networkx.readwrite import json_graph
+#from IPython.parallel import Client
 import logging
 logger = logging.getLogger('networkb.classes.brainnet')
 
@@ -30,6 +31,7 @@ class BrainNet():
         self.mask=mask
       else:
         self.mask=os.path.join(self.func_dir,mask)
+    
     self.network_dir=os.path.join(directory,'network')
     self.edgelist_file=os.path.join(self.network_dir,'edgelist.dat')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
@@ -116,7 +118,7 @@ class BrainNet():
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
-    self.Drt=Drt
+    #self.Drt=Drt
     
     f=open(os.path.join(network_dir,'node2voxel.json'),'w')
     json.dump(node2voxel,f)
@@ -124,21 +126,27 @@ class BrainNet():
     
     
     #T=itt.repeat(self.min_th)
-    #I=Matrix_Counter(Drt,1,count)
+    I=Matrix_Counter(Drt,1,count)
     
-    """
+
     queue = pprocess.Queue(limit=ncores)
     calc = queue.manage(pprocess.MakeParallel(self.correlate))
-    for inp in itt.izip(Dr,I,xrange(count),T):
+    for inp in itt.izip(Dr,I,xrange(count)):
       calc(inp)
   
-    f=open(listname,'w')
+
+    logger.info('Creating edgelist')
+    temp=[]
     for d in queue:
       for s in d:
-        print s
-        f.write(s)
+        temp.append(s)
+
+    logger.info('Saving edgelist')    
+    f=open(listname,'w')
+    for s in temp:
+      f.write(s)
     f.close()
-    """
+
     
     """
     i=0
@@ -151,46 +159,51 @@ class BrainNet():
         f.write(s)
       i=i+1
     f.close()
-    """
+
     
-    #n=Drt.shape[0]
-    #IDrt=grouper(Drt, n, fillvalue=None)
-    #iterdata=itt.izip(Dr,IDrt,T)
-    #temp1,temp2,temp3=iterdata.next()
     n=1000
-    S=self.correlate2(Dr[0:n,:])    
-    i=1    
-    for v in grouper(Dr[n+1:,:], n, fillvalue=None):
+    #try:
+
+    logger.info('Parallel processing')
+    rc = Client()
+    dview = rc[:]
+    logger.info('number of cores %i',len(rc.ids))
+    sparse_matrixs = dview.map_sync(lambda x, y=Drt,z=self.min_th: correlate2(x,y,z),grouper(Dr,n))
+    S=scipy.sparse.vstack(sparse_matrixs)
+    subdata=[(data,(row,col)) for ]    
+    
+    #except:
+    f= lambda x, y=Drt,z=self.min_th: correlate2(x,y,z)    
+    S=f(Dr[0:n,:])   
+    #rc = Client()
+    #dview = rc[:]  
+    i=1+n
+    n=1000  
+    for v in grouper(Dr[n+1:,:], n):
       if i % 1 ==0:
         logger.info('nodes: %i', i)
-      Snew=self.correlate2(v)
+      #sparse_matrixs = dview.map_sync(f,grouper(v,4))  
+      Snew=f(v)
+      #logger.info('strack new')
+      #Snew=scipy.sparse.vstack(sparse_matrixs)
+      logger.info('stack S')
       S=scipy.sparse.vstack([S,Snew])
       i=i+n
+    
     scipy.io.mmwrite(listname.split('.')[0]+'.mtx',S)
-
+    """
     return
 
-  def correlate(self,(v,M,i,th)):
+  def correlate(self,(v,M,i)):
     out=[]
     if not(M is None) and not(i is None):  
       C=pl.dot(v,M)
-      l=pl.absolute(C)>th    
+      l=pl.absolute(C)>self.th_min    
       Csub=C[l]
       ind=pl.find(l)
       for j,c in enumerate(Csub):
         out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
-    return out  
-
-  def correlate2(self,v):
-    SC=[]
-    try:
-      C=numpy.dot(v,self.Drt,out=v)
-    except:
-      print 'ups'
-      C=numpy.dot(v,self.Drt)        
-    C[pl.absolute(C)<=self.min_th]=0
-    SC=scipy.sparse.csc_matrix(C)
-    return SC    
+    return out    
   
   def percolation_network(self,ncores,correlation='both'):
     if correlation not in ['negative','positive','both']:
@@ -510,10 +523,21 @@ class BrainNet():
     d=spatial.distance.euclidean(v1,v2)
     return d
 
-def grouper(iterable, n, fillvalue=None):
+def grouper(iterable, n):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
-    v=itt.izip_longest(fillvalue=fillvalue, *args)
-    return pl.array([x for x in v if x!=None])
+    I=itt.izip_longest(fillvalue=None, *args)
+    I2=list(itt.imap(lambda v: pl.array([x for x in v if x!=None]),I))
+    return I2
 
+def correlate2(v,Drt,th):
+  SC=[]
+  try:
+    A=numpy.zeros((v.shape[0],Drt))
+    C=numpy.dot(v,Drt,out=A)
+  except:
+    C=numpy.dot(v,Drt)      
+  C[pl.absolute(C)<=th]=0
+  SC=scipy.sparse.csc_matrix(C)
+  return SC  

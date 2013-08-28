@@ -85,5 +85,4 @@ def plot_clusters_in_brain(bn,background,cluster_list,actives=[True,False,False]
     lk.set_data(M[:,:,k0,:].swapaxes(0,1))
     plt.draw()
   check.on_clicked(showcluster)
-  plt.show()
   return
