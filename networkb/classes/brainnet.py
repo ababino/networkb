@@ -32,7 +32,7 @@ class BrainNet():
       else:
         self.mask=os.path.join(self.func_dir,mask)
     
-    self.network_dir=os.path.join(directory,'network')
+    self.network_dir=os.path.join(self.func_dir,name.split('.')[0]+'_network')
     self.edgelist_file=os.path.join(self.network_dir,'edgelist.dat')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
     self.affine=self.get_affine()
@@ -100,8 +100,8 @@ class BrainNet():
     M=self.get_mask_data()
     D=self.reshape_data2mask()
     sh=D.shape  
-    network_dir=os.path.join(self.dir,'network')
-    listname=os.path.join(network_dir,'edgelist.dat')
+    #network_dir=os.path.join(self.dir,'network')
+    listname=os.path.join(self.network_dir,'edgelist.dat')
 
     Dr=pl.zeros((sh[0]*sh[1]*sh[2],sh[3]))  
     node2voxel={}
@@ -120,7 +120,7 @@ class BrainNet():
     Drt=Drt.transpose()
     #self.Drt=Drt
     
-    f=open(os.path.join(network_dir,'node2voxel.json'),'w')
+    f=open(os.path.join(self.network_dir,'node2voxel.json'),'w')
     json.dump(node2voxel,f)
     f.close()
     
@@ -128,7 +128,7 @@ class BrainNet():
     #T=itt.repeat(self.min_th)
     I=Matrix_Counter(Drt,1,count)
     
-
+    results = pprocess.pmap(self.correlate, itt.izip(Dr,I,xrange(count), limit=ncores)
     queue = pprocess.Queue(limit=ncores)
     calc = queue.manage(pprocess.MakeParallel(self.correlate))
     for inp in itt.izip(Dr,I,xrange(count)):
