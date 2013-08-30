@@ -1,17 +1,15 @@
-from networkb.classes.matrixcounter import Matrix_Counter
+#from networkb.classes.matrixcounter import Matrix_Counter
 from networkb.algorithms.mass_path_distance import mass_path_distance
 from networkb.algorithms.weak_link_distribution import weak_link_distribution
-from networkb.algorithms import utils
 from glob import glob
 import json 
-import pprocess
-from multiprocessing import Pool
 import itertools as itt
 import os.path
 import os
 import networkx as nx
+import sys
+sys.path.append('/home/andres/08-develop/nibabel')
 import nibabel as nib
-import pylab as pl
 import numpy
 import scipy
 from scipy import spatial
@@ -20,9 +18,8 @@ import logging
 logger = logging.getLogger('networkb.classes.brainnet')
 
 class BrainNet():
-  def __init__(self,directory,name,mask=None,min_th=0.6,ncores=4,
-               force_edgelist=False,force_percolation=False,
-               correlation='both',func_dir='func'):
+  def __init__(self,directory,name,mask=None,min_th=0.6,force_edgelist=False,
+               force_percolation=False,correlation='both',func_dir='func'):
     self.dir=directory
     self.subject=os.path.basename(directory)
     self.func_dir=os.path.join(directory,func_dir)
@@ -32,9 +29,11 @@ class BrainNet():
         self.mask=mask
       else:
         self.mask=os.path.join(self.func_dir,mask)
-    
+    else:
+      self.mask=mask
+      
     self.network_dir=os.path.join(self.func_dir,name.split('.')[0]+'_network')
-    self.edgelist_file=os.path.join(self.network_dir,'edgelist.dat')
+    self.edgelist_file=os.path.join(self.network_dir,'edgelist.mtx')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
     self.affine=self.get_affine()
     self.min_th=min_th
@@ -48,14 +47,14 @@ class BrainNet():
     logger.info(self.subject)
     if not os.path.exists(self.edgelist_file) or force_edgelist:
       logger.info('Building edgelist')
-      self.gen_edgelist(ncores)
+      self.gen_edgelist()
     
     self.node2voxel=self.get_node2voxel()
     if (
     not os.path.exists(os.path.join(self.network_dir,'cluster_dic.json')) or 
     force_percolation):
       logger.info('Percolating')   
-      self.percolation_network(ncores,correlation=correlation)
+      self.percolation_network(correlation=correlation)
 
     self.non_file=os.path.join(self.network_dir,'non.json')
     self.cluster_dic_file=os.path.join(self.network_dir,'cluster_dic.json')
@@ -90,29 +89,28 @@ class BrainNet():
 #===========================================================================
 # Generate edge list
 #===========================================================================
-  def gen_edgelist(self,ncores):
+  def gen_edgelist(self):
     """
     Gennerates a list of correlations among voxel's time series of file 
-    "filename". "mask" is the mask file for "filename". "ncores" is the 
-    number of cores to use in the calculation. "th" is the minimun threshold 
+    "filename". "mask" is the mask file for "filename. "th" is the minimun threshold 
     that will be save to the file.
     """
     logger.info('loading image')
     M=self.get_mask_data()
     D=self.reshape_data2mask()
     sh=D.shape  
-    #network_dir=os.path.join(self.dir,'network')
-    listname=os.path.join(self.network_dir,'edgelist.dat')
 
-    Dr=pl.zeros((sh[0]*sh[1]*sh[2],sh[3]))  
+    listname=os.path.join(self.network_dir,'edgelist.mtx')
+
+    Dr=numpy.zeros((sh[0]*sh[1]*sh[2],sh[3]))  
     node2voxel={}
     count=0
     
     for (i,j,k) in itt.product(range(sh[0]),range(sh[1]),range(sh[2])):
       if M[i,j,k]!=0 and any(D[i,j,k,:]!=D[i,j,k,0]):
-        v=D[i,j,k,:]-pl.mean(D[i,j,k,:])
+        v=D[i,j,k,:]-numpy.mean(D[i,j,k,:])
         node2voxel[count]=(i,j,k)
-        Dr[count,:]=v/pl.linalg.norm(v)
+        Dr[count,:]=v/numpy.linalg.norm(v)
         count=count+1
     
     self.count=count
@@ -125,148 +123,51 @@ class BrainNet():
     f=open(os.path.join(self.network_dir,'node2voxel.json'),'w')
     json.dump(node2voxel,f)
     f.close()
-    
-    #I=Matrix_Counter(Drt,1,count)
-    """
-    logger.info('Creating edgelist')
-    queue = pprocess.Queue(limit=ncores)
-    calc = queue.manage(pprocess.MakeParallel(self.correlate))
-    for inp in itt.izip(Dr,I,xrange(count)):
-      calc(inp)
 
-    temp=[]
-    for d in queue:
-      for s in d:
-        temp.append(s)
-
-    logger.info('Saving edgelist')
-    temp=sum(temp,[])
-    f=open(listname,'w')
-    for s in temp:    
-      f.write(s)
-    f.close()
-
-    logger.info('Creating edgelist')
-    p=Pool(4)
-    f=lambda x,y=count,z=self.min_th : utils.correlate2(x,y,z)
-    secuence=itt.izip(Dr,I)
-    SC_list = p.map(f, secuence)
-    logger.info('stack')        
-    S=scipy.sparse.vstack(SC_list)
-    logger.info('Saving edgelist')    
-    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',S)    
-    """
-    """
-    logger.info('Creating edgelist')
-    secuence=itt.izip(Dr,I,xrange(count))
-    results = pprocess.pmap(self.correlate, secuence, limit=ncores)
-    results=sum(results,[])    
-    logger.info('Saving edgelist. len(results)=%i',len(results))    
-    f=open(listname,'w')
-    for s in results:    
-      f.write(s)
-    f.close()
-    """
-    
-    """
-    i=0
-    f=open(listname,'w')
-    for inp in itt.izip(Dr,I,xrange(count),T):
-      if i % 1000 ==0:
-        logger.info('nodes: %i', i)
-      out=self.correlate(inp)
-      for s in out:
-        f.write(s)
-      i=i+1
-    f.close()
-
-    
-
-    #try:
-
-
-    logger.info('Parallel processing')
-    sparse_matrixs = pprocess.pmap(self.correlate2, grouper(Dr,n), limit=ncores)
-    logger.info('stack')
-    S=scipy.sparse.vstack(sparse_matrixs)
-    subS=scipy.sparse.lil_matrix(S.shape)
-    logger.info('Filtering')
-    for i,row in enumerate(S.rows):
-      for j in row:
-        if j>i:
-          subS[i,j]=S[i,j]
-    logger.info('Saving')    
-    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',subS)   
-
-    """
-    n=2000
-    S=self.correlate2(Dr[0:n,:])   
-    i=1+n
-    n=1000  
-    for v in grouper(Dr[n+1:,:], n):
-      if i % 1 ==0:
-        logger.info('nodes: %i', i)
-      Snew=self.correlate2(v)
-      logger.info('stack S')
+    n=1000
+    S=self.correlate(Dr[0:n,:])
+    for i,v in enumerate(grouper(Dr[n:,:], n)):
+      if i % 10 ==0:
+        logger.info('nodes: %i', S.shape[0])
+      Snew=self.correlate(v)
       S=scipy.sparse.vstack([S,Snew])
-      i=i+n
     S=scipy.sparse.lil_matrix(S)
     subS=scipy.sparse.lil_matrix(S.shape)
-    logger.info('Filtering')
+    logger.info('Filtering number_of_edges=%i',S.nnz)
     for i,row in enumerate(S.rows):
       for j in row:
         if j>i:
           subS[i,j]=S[i,j]
     logger.info('Saving')    
-    scipy.io.mmwrite(listname.split('.')[0]+'.mtx',subS)       
+    scipy.io.mmwrite(listname,subS)       
 
     return
 
-  def correlate(self,(v,M,i)):
-    out=[]
-    if not(M is None) and not(i is None):  
-      C=pl.dot(v,M)
-      l=pl.absolute(C)>self.th_min    
-      Csub=C[l]
-      ind=pl.find(l)
-      for j,c in enumerate(Csub):
-        out.append(str(i)+' '+str(ind[j]+i+1)+' '+str(c)+'\n')    
-    return out    
-
-  def correlate2(self,v):
+  def correlate(self,v):
     try:
-      A=numpy.zeros((v.shape[0],self.Drt))
+      A=numpy.zeros((v.shape[0],self.Drt.shape[1]))
       C=numpy.dot(v,self.Drt,out=A)
     except:
+      logger.info('dot')
       C=numpy.dot(v,self.Drt)      
-    C[pl.absolute(C)<=self.min_th]=0
-    SC=scipy.sparse.lil_matrix(C)
+    C[numpy.absolute(C)<=self.min_th]=0
+    SC=scipy.sparse.coo_matrix(C)
+    
     return SC  
 
   
-  def percolation_network(self,ncores,correlation='both'):
+  def percolation_network(self,correlation='both'):
     if correlation not in ['negative','positive','both']:
       raise Exception(
       'correlation must be one of: negative, positive or both')
-    G=nx.Graph()
-    with open(self.edgelist_file) as edgelist:
-      for line in edgelist:
-          s=line.split()
-          w=float(s[2])
-          if correlation=='both':
-            G.add_edge(int(s[0]),int(s[1]),weight=abs(w))
-          elif correlation=='positive':
-            if w>0:
-              G.add_edge(int(s[0]),int(s[1]),weight=w)
-          elif correlation=='negative':
-            if w<0:
-              G.add_edge(int(s[0]),int(s[1]),weight=-w)
-      logger.info('number of nodes in network: %i', G.number_of_nodes())
-      mcs=2#max(int(0.001*G.number_of_nodes()),2)
-      
-      th=list(pl.arange(self.min_th,1,0.001))
-      (gc,NON,cluster_dic)=self.percolation(G,th,mcs,ncores)
-      self.save_data(NON,cluster_dic,gc,th)  
+    G=self.get_Graph(self.min_th,correlation=correlation)
+
+    logger.info('number of nodes in network: %i', G.number_of_nodes())
+    mcs=2#max(int(0.001*G.number_of_nodes()),2)
+    
+    th=list(numpy.arange(self.min_th,1,0.001))
+    (gc,NON,cluster_dic)=self.percolation(G,th,mcs)
+    self.save_data(NON,cluster_dic,gc,th)  
     return
 
   def save_data(self,NON,cluster_dic,gc,th):
@@ -313,7 +214,7 @@ class BrainNet():
       temp=numpy.linalg.inv(A_mask)-numpy.linalg.inv(A)
       (i0,j0,k0)=temp.round().astype('int32')[0:3,3]
       logger.info('Shift (%i,%i,%i)',i0,j0,k0)
-      temp=pl.zeros((M.shape[0],M.shape[1],M.shape[2],sh[3]))
+      temp=numpy.zeros((M.shape[0],M.shape[1],M.shape[2],sh[3]))
       temp[i0:i0+sh[0],j0:j0+sh[1],k0:k0+sh[2]]=D
       D=temp
     return D
@@ -328,7 +229,7 @@ class BrainNet():
         img2 = nib.load(os.path.join(self.func_dir,self.mask))
       M=img2.get_data()
     else:
-      M=pl.ones((sh[0],sh[1],sh[2]))
+      M=numpy.ones((sh[0],sh[1],sh[2]))
     return M
     
   def get_img(self):
@@ -391,20 +292,20 @@ class BrainNet():
       'correlation must be one of: negative, positive or both')
     G=nx.Graph()
     if edge_list is None:
-      with open(self.edgelist_file) as edge_list:
-        for line in edge_list:
-          s=line.split()
-          w=float(s[2])
+      M=scipy.io.mmread(self.edgelist_file)
+      M=scipy.sparse.lil_matrix(M)
+      for i,row in enumerate(M.rows):
+        for j in row:
+          w=M[i,j]
           if correlation=='both':
-            if (th<=abs(w) and int(s[0]) in nodelist and 
-                int(s[1]) in nodelist):
-              G.add_edge(int(s[0]),int(s[1])) 
+            if th<=abs(w) and i in nodelist:
+              G.add_edge(i,j)
           elif correlation=='positive':
-            if th<=w and int(s[0]) in nodelist and int(s[1]) in nodelist:
-              G.add_edge(int(s[0]),int(s[1])) 
+            if th<=w and i in nodelist:
+              G.add_edge(i,j)          
           elif correlation=='negative':
-            if w<=-th and int(s[0]) in nodelist and int(s[1]) in nodelist:
-              G.add_edge(int(s[0]),int(s[1])) 
+            if w<=-th and i in nodelist:
+              G.add_edge(i,j) 
     else:
       for edge in edge_list:
         if edge[0] in nodelist and edge[1] in nodelist:
@@ -416,19 +317,20 @@ class BrainNet():
       raise Exception(
       'correlation must be one of: negative, positive or both')
     G=nx.Graph()
-    with open(self.edgelist_file) as edge_list:
-      for line in edge_list:
-        s=line.split()
-        w=float(s[2])
+    M=scipy.io.mmread(self.edgelist_file)
+    M=scipy.sparse.lil_matrix(M)
+    for i,row in enumerate(M.rows):
+      for j in row:
+        w=M[i,j]
         if correlation=='both':
           if th<abs(w)<th_up:
-            G.add_edge(int(s[0]),int(s[1]))
+            G.add_edge(i,j,weight=abs(w))
         elif correlation=='positive':
           if th<w<th_up:
-            G.add_edge(int(s[0]),int(s[1]))          
+            G.add_edge(i,j,weight=w)          
         elif correlation=='negative':
           if -th_up<w<-th:
-            G.add_edge(int(s[0]),int(s[1]))          
+            G.add_edge(i,j,weight=-w)          
     return G
   
   def number_of_nodes(self):
@@ -443,7 +345,7 @@ class BrainNet():
         img2 = nib.load(os.path.join(self.func_dir,self.mask))
       M=img2.get_data()
     else:
-      M=pl.ones((sh[0],sh[1],sh[2]))      
+      M=numpy.ones((sh[0],sh[1],sh[2]))      
     count=0
     for i in range(sh[0]):
       for j in range(sh[1]):
@@ -452,7 +354,7 @@ class BrainNet():
             count=count+1
     return count    
 
-  def prune(self,G,th,mcs,cc_old,ncores):
+  def prune(self,G,th,mcs,cc_old):
     """
     Prunes G and returns a list of clusters biggers than mcs 
     """
@@ -524,7 +426,7 @@ class BrainNet():
   
     return NON  
 
-  def percolation(self,G,th,mcs,ncores):
+  def percolation(self,G,th,mcs):
     """
     Percolation process of G throu the thresholds th. Returns gc: a list of
     sizes of clusters for a given threshold; NON: Network of networks; 
@@ -540,7 +442,7 @@ class BrainNet():
     cc100=[G.nodes()]
     for i in range(len(th)):
       logger.debug('threshold: %f', th[i])
-      [G,cc100]=self.prune(G,th[i],mcs,cc100,ncores)
+      [G,cc100]=self.prune(G,th[i],mcs,cc100)
       cluster_dic[str(th[i])]=cc100
       gc=self.percolation_data(gc,cc100,nn)
       NON=self.update_NON(NON,cc100,th[i],th[i-1])#[:min(10,len(cc100))]
@@ -567,20 +469,7 @@ def grouper(iterable, n):
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
     I=itt.izip_longest(fillvalue=None, *args)
-    I2=list(itt.imap(lambda v: pl.array([x for x in v if x!=None]),I))
+    I2=list(itt.imap(lambda v: numpy.array([x for x in v if x!=None]),I))
     return I2
 
 
-
-"""
-def correlate2(v,Drt,th):
-  SC=[]
-  try:
-    A=numpy.zeros((v.shape[0],Drt))
-    C=numpy.dot(v,Drt,out=A)
-  except:
-    C=numpy.dot(v,Drt)      
-  C[pl.absolute(C)<=th]=0
-  SC=scipy.sparse.csc_matrix(C)
-  return SC  
-"""

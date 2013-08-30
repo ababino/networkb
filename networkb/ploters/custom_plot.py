@@ -4,12 +4,12 @@ Created on Thu May 16 13:42:48 2013
 
 @author: andres
 """
-import pylab
+import matplotlib as mpl
 
 def custom_plot(x,y,op='linlin'):
-  pylab.figure()
-  ax=pylab.subplot(111)
-  pylab.plot(x,y,'*')
+  mpl.figure()
+  ax=mpl.subplot(111)
+  mpl.plot(x,y,'*')
   if op=='loglog':
     ax.set_xscale("log")
     ax.set_yscale("log")
