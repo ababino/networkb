@@ -39,12 +39,14 @@ class BrainNet():
     self.min_th=min_th
     if not os.path.exists(self.network_dir):
       os.makedirs(self.network_dir)
+    
     fh=logging.FileHandler(self.network_dir+'/info.log')
     fh.setLevel(logging.DEBUG)
     logger.addHandler(fh)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.info(self.subject)
+    
     if not os.path.exists(self.edgelist_file) or force_edgelist:
       logger.info('Building edgelist')
       self.gen_edgelist()
@@ -64,6 +66,7 @@ class BrainNet():
                                               'cluster_properties.json')
     self.weak_link_distribution_file=os.path.join(self.network_dir,
                                                   'weak_link_distribution.json')
+    self.volume_shape=self.get_mask_data().shape
     return
 
   def check_dir_structure(self):
@@ -163,7 +166,7 @@ class BrainNet():
     G=self.get_Graph(self.min_th,correlation=correlation)
 
     logger.info('number of nodes in network: %i', G.number_of_nodes())
-    mcs=2#max(int(0.001*G.number_of_nodes()),2)
+    mcs=max(int(0.001*G.number_of_nodes()),2)
     
     th=list(numpy.arange(self.min_th,1,0.001))
     (gc,NON,cluster_dic)=self.percolation(G,th,mcs)
@@ -220,8 +223,6 @@ class BrainNet():
     return D
 
   def get_mask_data(self):
-    D=self.get_img_data()
-    sh=D.shape    
     if self.mask!=None:
       if os.path.isabs(self.mask):
         img2 = nib.load(self.mask)
@@ -229,6 +230,8 @@ class BrainNet():
         img2 = nib.load(os.path.join(self.func_dir,self.mask))
       M=img2.get_data()
     else:
+      D=self.get_img_data()
+      sh=D.shape 
       M=numpy.ones((sh[0],sh[1],sh[2]))
     return M
     
@@ -334,18 +337,9 @@ class BrainNet():
     return G
   
   def number_of_nodes(self):
-    #img_dir=os.path.join(self.func_dir,self.name)
-    img = self.get_img()#nib.load(img_dir)
-    D=img.get_data()
-    sh=D.shape  
-    if self.mask!=None:
-      if os.path.isabs(self.mask):
-        img2 = nib.load(self.mask)
-      else:
-        img2 = nib.load(os.path.join(self.func_dir,self.mask))
-      M=img2.get_data()
-    else:
-      M=numpy.ones((sh[0],sh[1],sh[2]))      
+    D=self.get_img_data()
+    M=self.get_mask_data()  
+    sh=D.shape
     count=0
     for i in range(sh[0]):
       for j in range(sh[1]):
@@ -396,9 +390,10 @@ class BrainNet():
     else:
       n=max(NON.nodes())+1
     
+    cc100=sorted(cc100,key=len,reverse=True)
     for j in range(len(cc100)):
       if len(cc100[j])>0:
-        NON.add_node(n,th=th,cc=cc100[j])
+        NON.add_node(n,th=th,cc=cc100[j],order=j)
         for (node,dat) in nodes:
           if set(dat['cc']).issuperset(set(cc100[j])) and dat['th']==th_old:
             NON.add_edge(node,n)
@@ -407,6 +402,7 @@ class BrainNet():
                       n,len(cc100[j]),th,th_old)
         n=n+1
     
+    """
     cond=True
     for (node,dat) in nodes:
       if dat['th']==th_old and nx.degree(NON,node)!=2 and node>0 :
@@ -423,7 +419,7 @@ class BrainNet():
           neigs=NON.neighbors(node)
           NON.node[node]['th']=NON.node[neigs[0]]['th']
           NON.remove_node(neigs[0])
-  
+    """
     return NON  
 
   def percolation(self,G,th,mcs):
