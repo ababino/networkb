@@ -20,6 +20,10 @@ def plot_clusters_in_brain(bn,background,cluster_list,actives=[True,False,False]
   imgB = nib.load(background)
   D=img.get_data()
   sh=D.shape
+  A=bn.affine
+  aspect1=abs(A[2,2]/A[0,0])
+  aspect2=abs(A[2,2]/A[1,1])
+  aspect3=abs(A[1,1]/A[0,0])
   M=pylab.zeros((sh[0],sh[1],sh[2],3))
   B=M
   B0=imgB.get_data().astype(numpy.float32, copy=False) 
@@ -38,15 +42,15 @@ def plot_clusters_in_brain(bn,background,cluster_list,actives=[True,False,False]
   plt.figure()
   plt.subplot(221)
   j0 = round(M.shape[1]*0.5)
-  lj = plt.imshow(M[:,j0,:,:].swapaxes(0,1),interpolation='None')
+  lj = plt.imshow(M[:,j0,:,:].swapaxes(0,1),interpolation='None',aspect=aspect1)
   plt.axis([0, sh[0], 0, sh[2]])
   plt.subplot(222)
   i0 = round(M.shape[0]*0.5)
-  li = plt.imshow(M[i0,:,:,:].swapaxes(0,1),interpolation='None')
+  li = plt.imshow(M[i0,:,:,:].swapaxes(0,1),interpolation='None',aspect=aspect2)
   plt.axis([0, sh[1], 0, sh[2]])
   plt.subplot(223)
   k0 = round(M.shape[2]*0.5)
-  lk = plt.imshow(M[:,:,k0,:].swapaxes(0,1),interpolation='None')
+  lk = plt.imshow(M[:,:,k0,:].swapaxes(0,1),interpolation='None',aspect=aspect3)
   plt.axis([0, sh[0], 0, sh[1]])
   axcolor = 'lightgoldenrodyellow'
   axi = plt.axes([0.55, 0.3, 0.4, 0.03], axisbg=axcolor)
