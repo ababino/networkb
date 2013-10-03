@@ -4,3 +4,4 @@ from networkb.ploters.plot_NON import plot_NON
 from networkb.ploters.brain_plot import brain_plot
 from networkb.ploters.plot_clusters_in_brain import plot_clusters_in_brain
 from networkb.ploters.plot_4d_brain import plot_4d_brain
+from networkb.ploters.plot_volume import plot_volume

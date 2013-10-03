@@ -9,24 +9,26 @@ import networkx
 import itertools
 import json
 
-def weak_link_distribution(bn,N_clus=2,mcs=0):
-  jumps=networkb.find_th_jumps(bn,N_clus)
+def weak_link_distribution(bn,N_clus=2,mcs=0,n_jumps=1):
+  jumps=[j[0] for j in networkb.find_th_jumps(bn,N_clus)]
+  jumps=sorted(list(set(jumps)),reverse=True)
   if len(jumps)==0:
     return []
-  pc=max(jumps)
-  G=bn.get_Graph(pc,correlation='positive')
-  cluster_list=[x for x in networkx.connected_components(G) if x>mcs]
-  if len(cluster_list)<2:
-    return []
-  thmin=(jumps[jumps.index(pc)-1]+pc)/2
-  H=bn.get_Graph(thmin,th_up=pc,correlation='positive')
-  if H.number_of_edges()<1:
-    return []
-  H=networkx.subgraph(H,itertools.chain.from_iterable(cluster_list))
-  if H.number_of_edges()<1:
-    return []
+  pcs=jumps[0:min(n_jumps,len(jumps)-1)]
   d=[]  
-  for e in H.edges_iter():
-    d.append(bn.nodedistance(e))
+  for pc in pcs:
+    G=bn.get_Graph(pc,correlation='positive')
+    cluster_list=[x for x in networkx.connected_components(G) if x>mcs]
+    if len(cluster_list)<2:
+      return d
+    thmin=(jumps[jumps.index(pc)-1]+pc)/2
+    H=bn.get_Graph(thmin,th_up=pc,correlation='positive')
+    if H.number_of_edges()<1:
+      return d
+    H=networkx.subgraph(H,itertools.chain.from_iterable(cluster_list))
+    if H.number_of_edges()<1:
+      return d
+    for e in H.edges_iter():
+      d.append(bn.nodedistance(e))
   json.dump(d,open(bn.weak_link_distribution_file,'w'))
   return d

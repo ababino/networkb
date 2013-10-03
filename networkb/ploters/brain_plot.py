@@ -7,7 +7,12 @@ Created on Wed Jul 24 16:22:14 2013
 from pylab import get_cmap
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
+import os
+import nibabel as nib
 def brain_plot(D):
+  if os.path.isfile(D):
+    print 'loading data'
+    D=nib.load(D).get_data()
   cm=get_cmap("Greys_r")
   sh=D.shape
   plt.subplot(221)

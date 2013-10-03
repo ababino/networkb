@@ -29,7 +29,7 @@ def mass_path_distance(bn,N_clus,op='first',correlation='both'):
     if len(jumps)==0:
       print 'no jumps'
       return {'N':[],'rmax':[],'lmax':[],'lmean':[]}
-    pc=max(jumps)
+    pc=max([jump[0] for jump in jumps])
   elif op=='biggest':
     gap=0
     pc=1
@@ -41,7 +41,7 @@ def mass_path_distance(bn,N_clus,op='first',correlation='both'):
     for jump in jumps:
       j=th.index(jump)
       if gc[j-1]-gc[j]>gap:
-        pc=jump
+        pc=jump[0]
         gap=gc[j-1]-gc[j]    
   logger.info('pc=%f',pc)
   G=bn.get_Graph(pc,correlation=correlation)
@@ -70,7 +70,7 @@ def mass_path_distance(bn,N_clus,op='first',correlation='both'):
     rmax.append(numpy.max(D))
     lmax.append(max(path_length))
     lmean.append(numpy.mean(path_length))
-    del Gsub, D, A, pos
+    del Gsub, D, A, pos, path_length
   json.dump({'N':N,'rmax':rmax,'lmax':lmax,'lmean':lmean},
             open(bn.cluster_properties_file,'w'))
   return {'N':N,'rmax':rmax,'lmax':lmax,'lmean':lmean}

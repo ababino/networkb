@@ -33,19 +33,21 @@ class BrainNet():
       self.mask=mask
       
     self.network_dir=os.path.join(self.func_dir,name.split('.')[0]+'_network')
-    self.edgelist_file=os.path.join(self.network_dir,'edgelist.mtx')
-    self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
-    self.affine=self.get_affine()
-    self.min_th=min_th
-    if not os.path.exists(self.network_dir):
-      os.makedirs(self.network_dir)
-    
+
     fh=logging.FileHandler(self.network_dir+'/info.log')
     fh.setLevel(logging.DEBUG)
     logger.addHandler(fh)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.info(self.subject)
+
+    self.edgelist_file=os.path.join(self.network_dir,'edgelist.mtx')
+    self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
+    img=self.get_img()
+    self.affine=img.get_affine()
+    self.min_th=min_th
+    if not os.path.exists(self.network_dir):
+      os.makedirs(self.network_dir)
     
     if not os.path.exists(self.edgelist_file) or force_edgelist:
       logger.info('Building edgelist')
@@ -66,7 +68,7 @@ class BrainNet():
                                               'cluster_properties.json')
     self.weak_link_distribution_file=os.path.join(self.network_dir,
                                                   'weak_link_distribution.json')
-    self.volume_shape=self.get_mask_data().shape
+    self.volume_shape=self.reshape_data2mask().shape[0:3]
     return
 
   def check_dir_structure(self):
@@ -121,18 +123,17 @@ class BrainNet():
     Dr=Dr[:count,:]
     Drt=Dr.copy()
     Drt=Drt.transpose()
-    self.Drt=Drt    
     
     f=open(os.path.join(self.network_dir,'node2voxel.json'),'w')
     json.dump(node2voxel,f)
     f.close()
 
     n=1000
-    S=self.correlate(Dr[0:n,:])
+    S=self.correlate(Drt,Dr[0:n,:])
     for i,v in enumerate(grouper(Dr[n:,:], n)):
       if i % 10 ==0:
         logger.info('nodes: %i', S.shape[0])
-      Snew=self.correlate(v)
+      Snew=self.correlate(Drt,v)
       S=scipy.sparse.vstack([S,Snew])
     S=scipy.sparse.lil_matrix(S)
     subS=scipy.sparse.lil_matrix(S.shape)
@@ -146,13 +147,13 @@ class BrainNet():
 
     return
 
-  def correlate(self,v):
+  def correlate(self,Drt,v):
     try:
-      A=numpy.zeros((v.shape[0],self.Drt.shape[1]))
-      C=numpy.dot(v,self.Drt,out=A)
+      A=numpy.zeros((v.shape[0],Drt.shape[1]))
+      C=numpy.dot(v,Drt,out=A)
     except:
       logger.info('dot')
-      C=numpy.dot(v,self.Drt)      
+      C=numpy.dot(v,Drt)      
     C[numpy.absolute(C)<=self.min_th]=0
     SC=scipy.sparse.coo_matrix(C)
     
@@ -282,7 +283,7 @@ class BrainNet():
       clusters_properties=mass_path_distance(self,N_clus,op,correlation)
     return clusters_properties
 
-  def get_weak_link_distribution(self,force=False,N_clus=2,mcs=0):
+  def get_weak_link_distribution(self,force=False,N_clus=2,mcs=0,n_jumps=1):
     if os.path.exists(self.weak_link_distribution_file) and not force:
       d=json.load(open(self.weak_link_distribution_file))
     else:
@@ -460,6 +461,11 @@ class BrainNet():
     d=spatial.distance.euclidean(v1,v2)
     return d
 
+  def __unicode__(self):
+    return unicode(self.name+', '+ self.subject).encode('utf-8')
+  def __repr__(self):
+    return self.name+', '+ self.subject    
+    
 def grouper(iterable, n):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
