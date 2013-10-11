@@ -43,9 +43,16 @@ class BrainNet():
 
     self.edgelist_file=os.path.join(self.network_dir,'edgelist.mtx')
     self.node2voxel_file=os.path.join(self.network_dir,'node2voxel.json')
-    img=self.get_img()
-    self.affine=img.get_affine()
+    
+    self.affine_file=os.path.join(self.network_dir,'affine.npy')
+    if not os.path.exists(self.affine_file):    
+      img=self.get_img()
+      self.affine=img.get_affine()
+      numpy.save(self.affine_file,self.affine)
+    else:
+      self.affine=numpy.load(self.affine_file)      
     self.min_th=min_th
+    
     if not os.path.exists(self.network_dir):
       os.makedirs(self.network_dir)
     
@@ -68,7 +75,13 @@ class BrainNet():
                                               'cluster_properties.json')
     self.weak_link_distribution_file=os.path.join(self.network_dir,
                                                   'weak_link_distribution.json')
-    self.volume_shape=self.reshape_data2mask().shape[0:3]
+    
+    self.volume_shape_file=os.path.join(self.network_dir,'shape.npy')
+    if not os.path.exists(self.volume_shape_file):    
+      self.volume_shape=self.reshape_data2mask().shape[0:3]
+      numpy.save(self.volume_shape_file,self.volume_shape)
+    else:
+      self.volume_shape=numpy.load(self.volume_shape_file)            
     return
 
   def check_dir_structure(self):
