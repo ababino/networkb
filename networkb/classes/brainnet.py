@@ -378,21 +378,15 @@ class BrainNet():
     Prunes G and returns a list of clusters biggers than mcs 
     """
 
-    r_edges=[(n1,n2) for (n1,n2,w) in G.edges_iter(data=True) if
-    w['weight']<th]
-    G.remove_edges_from(r_edges)    
-
-    cc=nx.connected_components(G)
-    cc100=[cc[j] for j in range(len(cc)) if len(cc[j])>=mcs]
-    cc100=[cc100[j] for j in range(min(len(cc100),10))]    
-
-    #####remove small clusters#######
-    nodes=set(G.nodes())
-    nodes_in_c=set(sum(cc100,[]))
-    r_nodes=list(nodes.difference(nodes_in_c))
-    G.remove_nodes_from(r_nodes) 
+    for edge in G.Edges():
+      src=e.GetSrcNId()
+      dst=e.GetDstNId()
+      G.DelEdge(src,dst)
+    CnComV = snap.TCnComV()
+    MxWccGraph = snap.GetWccs(G, CnComV)
+    cc=[[n for n in cc] for cc in CnComV]
     
-    return [G,cc100]
+    return [G,cc]
 
   def percolation_data(self,gc,cc100,nn):
     cc_sizes=[float(len(cc100[j]))/nn for j in range(len(cc100))]
@@ -427,24 +421,6 @@ class BrainNet():
                       n,len(cc100[j]),th,th_old)
         n=n+1
     
-    """
-    cond=True
-    for (node,dat) in nodes:
-      if dat['th']==th_old and nx.degree(NON,node)!=2 and node>0 :
-        cond=False
-  
-    for (node,dat) in nodes:
-      if dat['th']==th_old:
-        if nx.degree(NON,node)==2 and node>0 and cond:
-          neigs=NON.neighbors(node)
-          hijo=max(neigs)
-          NON.node[node]['th']=NON.node[hijo]['th']
-          NON.remove_node(hijo)
-        elif nx.degree(NON,node)==1 and node==0:
-          neigs=NON.neighbors(node)
-          NON.node[node]['th']=NON.node[neigs[0]]['th']
-          NON.remove_node(neigs[0])
-    """
     return NON  
 
   def percolation(self,G,th,mcs):
