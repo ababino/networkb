@@ -343,20 +343,26 @@ class BrainNet():
         w=M[i,j]
         if correlation=='both':
           if th<abs(w)<th_up:
-            G.AddNode(i)
-            G.AddNode(j)
+            if not G.IsNode(i):
+              G.AddNode(i)
+            if not G.IsNode(j):
+              G.AddNode(j)
             e=G.AddEdge(i,j)
             G.AddFltAttrDatE(e,w,'float')
         elif correlation=='positive':
           if th<w<th_up:
-            G.AddNode(i)
-            G.AddNode(j)
+            if not G.IsNode(i):
+              G.AddNode(i)
+            if not G.IsNode(j):
+              G.AddNode(j)
             e=G.AddEdge(i,j)
             G.AddFltAttrDatE(e,w,'float')
         elif correlation=='negative':
           if -th_up<w<-th:
-            G.AddNode(i)
-            G.AddNode(j)
+            if not G.IsNode(i):
+              G.AddNode(i)
+            if not G.IsNode(j):
+              G.AddNode(j)
             e=G.AddEdge(i,j)
             G.AddFltAttrDatE(e,-w,'float')
     return G
@@ -436,13 +442,13 @@ class BrainNet():
     #network of networks          
     NON=nx.DiGraph() 
     cluster_dic={}
-    cc100=[G.nodes()]
+    cc=[n.GetId() for n in G.Nodes()]
     for i in range(len(th)):
       logger.debug('threshold: %f', th[i])
-      [G,cc100]=self.prune(G,th[i],mcs,cc100)
-      cluster_dic[str(th[i])]=cc100
-      gc=self.percolation_data(gc,cc100,nn)
-      NON=self.update_NON(NON,cc100,th[i],th[i-1])#[:min(10,len(cc100))]
+      [G,cc]=self.prune(G,th[i],mcs,cc)
+      cluster_dic[str(th[i])]=cc
+      gc=self.percolation_data(gc,cc,nn)
+      NON=self.update_NON(NON,cc,th[i],th[i-1])
       
     return (gc,NON,cluster_dic)  
 
