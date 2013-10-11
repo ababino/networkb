@@ -9,6 +9,8 @@ import os
 import networkx as nx
 import sys
 sys.path.append('/home/andres/08-develop/nibabel')
+sys.path.append('/home/andres/08-develop/snap-python/swig')
+import snap
 import nibabel as nib
 import numpy
 import scipy
@@ -333,7 +335,7 @@ class BrainNet():
     if correlation not in ['negative','positive','both']:
       raise Exception(
       'correlation must be one of: negative, positive or both')
-    G=nx.Graph()
+    G=snap.TNEANet.New()
     M=scipy.io.mmread(self.edgelist_file)
     M=scipy.sparse.lil_matrix(M)
     for i,row in enumerate(M.rows):
@@ -341,13 +343,22 @@ class BrainNet():
         w=M[i,j]
         if correlation=='both':
           if th<abs(w)<th_up:
-            G.add_edge(i,j,weight=abs(w))
+            G.AddNode(i)
+            G.AddNode(j)
+            e=G.AddEdge(i,j)
+            G.AddFltAttrDatE(e,w,'float')
         elif correlation=='positive':
           if th<w<th_up:
-            G.add_edge(i,j,weight=w)          
+            G.AddNode(i)
+            G.AddNode(j)
+            e=G.AddEdge(i,j)
+            G.AddFltAttrDatE(e,w,'float')
         elif correlation=='negative':
           if -th_up<w<-th:
-            G.add_edge(i,j,weight=-w)          
+            G.AddNode(i)
+            G.AddNode(j)
+            e=G.AddEdge(i,j)
+            G.AddFltAttrDatE(e,-w,'float')
     return G
   
   def number_of_nodes(self):
