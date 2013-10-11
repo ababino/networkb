@@ -387,7 +387,8 @@ class BrainNet():
     for edge in G.Edges():
       src=edge.GetSrcNId()
       dst=edge.GetDstNId()
-      G.DelEdge(src,dst)
+      if G.GetFltAttrDatE(src,dst)<th:
+        G.DelEdge(src,dst)
     CnComV = snap.TCnComV()
     MxWccGraph = snap.GetWccs(G, CnComV)
     cc=[[n for n in cc] for cc in CnComV]
