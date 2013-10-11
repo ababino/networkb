@@ -181,8 +181,8 @@ class BrainNet():
       'correlation must be one of: negative, positive or both')
     G=self.get_Graph(self.min_th,correlation=correlation)
 
-    logger.info('number of nodes in network: %i', G.number_of_nodes())
-    mcs=max(int(0.001*G.number_of_nodes()),2)
+    logger.info('number of nodes in network: %i', G.GetNodes())
+    mcs=max(int(0.001*G.GetNodes()),2)
     
     th=list(numpy.arange(self.min_th,1,0.001))
     (gc,NON,cluster_dic)=self.percolation(G,th,mcs)
@@ -385,8 +385,8 @@ class BrainNet():
     """
 
     for edge in G.Edges():
-      src=e.GetSrcNId()
-      dst=e.GetDstNId()
+      src=edge.GetSrcNId()
+      dst=edge.GetDstNId()
       G.DelEdge(src,dst)
     CnComV = snap.TCnComV()
     MxWccGraph = snap.GetWccs(G, CnComV)
@@ -436,7 +436,7 @@ class BrainNet():
     cluster_dic: a dictionary of clusters bigger than mcs for each 
     threshold. 
     """
-    nn=self.number_of_nodes() #float(G.number_of_nodes())
+    nn=self.number_of_nodes()
     #giant components list
     gc=[[]]
     #network of networks          
