@@ -444,7 +444,6 @@ class BrainNet():
     gc=[[]]
     #network of networks          
     NON=nx.DiGraph() 
-    cluster_dic={}
     cc=[n.GetId() for n in G.Nodes()]
     for i in range(len(th)):
       logger.debug('threshold: %f', th[i])
