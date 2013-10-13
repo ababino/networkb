@@ -383,12 +383,14 @@ class BrainNet():
     """
     Prunes G and returns a list of clusters biggers than mcs 
     """
-
+    logger.debug('pruning')
     for edge in G.Edges():
       src=edge.GetSrcNId()
       dst=edge.GetDstNId()
-      if G.GetFltAttrDatE(src,dst)<th:
+      if G.GetFltAttrDatE(edge.GetId(),'float')<th:
         G.DelEdge(src,dst)
+
+    logger.debug('connected components')
     CnComV = snap.TCnComV()
     MxWccGraph = snap.GetWccs(G, CnComV)
     cc=[[n for n in cc] for cc in CnComV]
