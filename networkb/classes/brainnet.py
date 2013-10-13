@@ -393,8 +393,13 @@ class BrainNet():
     logger.debug('connected components')
     CnComV = snap.TCnComV()
     MxWccGraph = snap.GetWccs(G, CnComV)
-    cc=[[n for n in cc] for cc in CnComV]
-    
+    logger.debug('connected components')
+    cc=[[n for n in cc] for cc in CnComV if cc.Len()>1]
+    logger.debug('removing isoleted nodes')
+    for cc in CnComV:
+      if cc.Len()==1:
+        G.DelNode(cc[0])
+
     return [G,cc]
 
   def percolation_data(self,gc,cc100,nn):
@@ -409,25 +414,25 @@ class BrainNet():
         gc[j].append(cc_sizes[j])
     return gc
 
-  def update_NON(self,NON,cc100,th,th_old):
+  def update_NON(self,NON,cc,th,th_old):
     check=True
-    nodes=NON.nodes(data=True)
-    if len(nodes)==0:
+    nodes=nodes(data=True)
+    if len(NON)==0:
       n=0
       check=False
     else:
       n=max(NON.nodes())+1
     
-    cc100=sorted(cc100,key=len,reverse=True)
-    for j in range(len(cc100)):
-      if len(cc100[j])>0:
-        NON.add_node(n,th=th,cc=cc100[j],order=j)
+    cc=sorted(cc,key=len,reverse=True)
+    for j in range(len(cc)):
+      if len(cc[j])>0:
+        NON.add_node(n,th=th,cc=cc[j],order=j)
         for (node,dat) in nodes:
-          if set(dat['cc']).issuperset(set(cc100[j])) and dat['th']==th_old:
+          if set(dat['cc']).issuperset(set(cc[j])) and dat['th']==th_old:
             NON.add_edge(node,n)
         if nx.degree(NON,n)==0 and check:
           logger.warn('node in NON without parent. (%i,%i,th=%f,th_old=%f)',
-                      n,len(cc100[j]),th,th_old)
+                      n,len(cc[j]),th,th_old)
         n=n+1
     
     return NON  
@@ -442,8 +447,8 @@ class BrainNet():
     nn=self.number_of_nodes()
     #giant components list
     gc=[[]]
-    #network of networks          
-    NON=nx.DiGraph() 
+    #network of networks
+    NON=snap.TNEANet.New()          
     cc=[n.GetId() for n in G.Nodes()]
     for i in range(len(th)):
       logger.debug('threshold: %f', th[i])
