@@ -449,11 +449,10 @@ class BrainNet():
     for i in range(len(th)):
       logger.debug('threshold: %f', th[i])
       [G,cc]=self.prune(G,th[i],mcs,cc)
-      cluster_dic[str(th[i])]=cc
       gc=self.percolation_data(gc,cc,nn)
       NON=self.update_NON(NON,cc,th[i],th[i-1])
       
-    return (gc,NON,cluster_dic)  
+    return (gc,NON)  
 
   def nodedistance(self,(n1,n2)):
     """
