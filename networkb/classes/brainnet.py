@@ -402,8 +402,8 @@ class BrainNet():
 
     return [G,cc]
 
-  def percolation_data(self,gc,cc100,nn):
-    cc_sizes=[float(len(cc100[j]))/nn for j in range(len(cc100))]
+  def percolation_data(self,gc,cc,nn):
+    cc_sizes=[float(clus.Len())/nn for clus in cc]
     for j in range(max(len(cc_sizes),len(gc))):
       if j>=len(gc):
         lengs=[len(x) for x in gc]
