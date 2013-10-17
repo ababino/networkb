@@ -150,15 +150,12 @@ class BrainNet():
         logger.info('nodes: %i', S.shape[0])
       Snew=self.correlate(Drt,v)
       S=scipy.sparse.vstack([S,Snew])
-    S=scipy.sparse.lil_matrix(S)
-    subS=scipy.sparse.lil_matrix(S.shape)
+
     logger.info('Filtering number_of_edges=%i',S.nnz)
-    for i,row in enumerate(S.rows):
-      for j in row:
-        if j>i:
-          subS[i,j]=S[i,j]
+    S=scipy.sparse.triu(S)
+    S=scipy.sparse.lil_matrix(S)
     logger.info('Saving')    
-    scipy.io.mmwrite(listname,subS)       
+    scipy.io.mmwrite(listname,S)       
 
     return
 
@@ -179,27 +176,23 @@ class BrainNet():
     if correlation not in ['negative','positive','both']:
       raise Exception(
       'correlation must be one of: negative, positive or both')
-    G=self.get_Graph(self.min_th,correlation=correlation)
+    G,wdic=self.get_Graph(self.min_th,correlation=correlation)
 
     logger.info('number of nodes in network: %i', G.GetNodes())
     mcs=max(int(0.001*G.GetNodes()),2)
     
     th=list(numpy.arange(self.min_th,1,0.001))
-    (gc,NON,cluster_dic)=self.percolation(G,th,mcs)
-    self.save_data(NON,cluster_dic,gc,th)  
+    (gc,NON)=self.percolation(G,th,mcs,wdic)
+    self.save_data(NON,gc,th)  
     return
 
-  def save_data(self,NON,cluster_dic,gc,th):
+  def save_data(self,NON,gc,th):
     NONdata=json_graph.node_link_data(NON)
     
     f=open(os.path.join(self.network_dir,'non.json'),'w')
     f.write(json.dumps(NONdata))
     f.close()
-    os.path.join(self.network_dir,'cluster_dic.json')
-    f=open(os.path.join(self.network_dir,'cluster_dic.json'),'w')
-    f.write(json.dumps(cluster_dic))
-    f.close()
-    
+
     f=open(os.path.join(self.network_dir,'gc.json'),'w')
     f.write(json.dumps(gc))
     f.close()
@@ -336,36 +329,51 @@ class BrainNet():
       raise Exception(
       'correlation must be one of: negative, positive or both')
     G=snap.TNEANet.New()
-    M=scipy.io.mmread(self.edgelist_file)
-    M=scipy.sparse.lil_matrix(M)
-    for i,row in enumerate(M.rows):
-      for j in row:
-        w=M[i,j]
-        if correlation=='both':
-          if th<abs(w)<th_up:
-            if not G.IsNode(i):
-              G.AddNode(i)
-            if not G.IsNode(j):
-              G.AddNode(j)
-            e=G.AddEdge(i,j)
-            G.AddFltAttrDatE(e,w,'float')
-        elif correlation=='positive':
-          if th<w<th_up:
-            if not G.IsNode(i):
-              G.AddNode(i)
-            if not G.IsNode(j):
-              G.AddNode(j)
-            e=G.AddEdge(i,j)
-            G.AddFltAttrDatE(e,w,'float')
-        elif correlation=='negative':
-          if -th_up<w<-th:
-            if not G.IsNode(i):
-              G.AddNode(i)
-            if not G.IsNode(j):
-              G.AddNode(j)
-            e=G.AddEdge(i,j)
-            G.AddFltAttrDatE(e,-w,'float')
-    return G
+    wdic={}
+    if os.path.isfile(self.edgelist_file[:-3]+"graph"):
+      FIn = snap.TFIn(self.edgelist_file[:-3]+"graph")
+      G = snap.TNEANet.Load(FIn)
+      for edge in G.Edges():
+        wdic[(edge.GetSrcNId(),edge.GetDstNId())]= G.GetFltAttrDatE(edge.GetId(),'float')
+    else:
+      M=scipy.io.mmread(self.edgelist_file)
+      M=scipy.sparse.lil_matrix(M)
+      for i,row in enumerate(M.rows):
+        for j in row:
+          w=M[i,j]
+          if correlation=='both':
+            if th<abs(w)<th_up:
+              if not G.IsNode(i):
+                G.AddNode(i)
+              if not G.IsNode(j):
+                G.AddNode(j)
+              e=G.AddEdge(i,j)
+              G.AddFltAttrDatE(e,w,'float')
+              wdic[e]=w
+          elif correlation=='positive':
+            if th<w<th_up:
+              if not G.IsNode(i):
+                G.AddNode(i)
+              if not G.IsNode(j):
+                G.AddNode(j)
+              e=G.AddEdge(i,j)
+              G.AddFltAttrDatE(e,w,'float')
+              wdic[e]=w
+          elif correlation=='negative':
+            if -th_up<w<-th:
+              if not G.IsNode(i):
+                G.AddNode(i)
+              if not G.IsNode(j):
+                G.AddNode(j)
+              e=G.AddEdge(i,j)
+              G.AddFltAttrDatE(e,-w,'float')
+              wdic[e]=-w
+            
+      FOut = snap.TFOut(self.edgelist_file[:-3]+"graph")
+      G.Save(FOut)
+      FOut.Flush()
+
+    return G,wdic
   
   def number_of_nodes(self):
     D=self.get_img_data()
@@ -379,31 +387,26 @@ class BrainNet():
             count=count+1
     return count    
 
-  def prune(self,G,th,mcs,cc_old):
+  def prune(self,G,th,mcs,wdic):
     """
     Prunes G and returns a list of clusters biggers than mcs 
     """
-    logger.debug('pruning')
-    for edge in G.Edges():
-      src=edge.GetSrcNId()
-      dst=edge.GetDstNId()
-      if G.GetFltAttrDatE(edge.GetId(),'float')<th:
-        G.DelEdge(src,dst)
 
-    logger.debug('connected components')
+    r_edges=[edge for edge in wdic if wdic[edge]<th]
+    for edge in r_edges:
+      G.DelEdge(edge[0],edge[1])
+      wdic.pop(edge)  
+
     CnComV = snap.TCnComV()
     MxWccGraph = snap.GetWccs(G, CnComV)
-    logger.debug('connected components')
-    cc=[[n for n in cc] for cc in CnComV if cc.Len()>1]
-    logger.debug('removing isoleted nodes')
-    for cc in CnComV:
-      if cc.Len()==1:
-        G.DelNode(cc[0])
 
-    return [G,cc]
+    cc=[[n for n in clus] for clus in CnComV if clus.Len()>1]
+
+    snap.DelZeroDegNodes_PNEANet(G)
+    return [G,cc,wdic]
 
   def percolation_data(self,gc,cc,nn):
-    cc_sizes=[float(clus.Len())/nn for clus in cc]
+    cc_sizes=[float(len(clus))/nn for clus in cc]
     for j in range(max(len(cc_sizes),len(gc))):
       if j>=len(gc):
         lengs=[len(x) for x in gc]
@@ -416,7 +419,7 @@ class BrainNet():
 
   def update_NON(self,NON,cc,th,th_old):
     check=True
-    nodes=nodes(data=True)
+    nodes=NON.nodes(data=True)
     if len(NON)==0:
       n=0
       check=False
@@ -425,11 +428,13 @@ class BrainNet():
     
     cc=sorted(cc,key=len,reverse=True)
     for j in range(len(cc)):
-      if len(cc[j])>0:
+      # Ignore small clusters for efficiency 
+      if len(cc[j])>10: 
         NON.add_node(n,th=th,cc=cc[j],order=j)
         for (node,dat) in nodes:
-          if set(dat['cc']).issuperset(set(cc[j])) and dat['th']==th_old:
-            NON.add_edge(node,n)
+          if dat['th']==th_old:
+            if cc[j][0] in dat['cc']: #set(dat['cc']).issuperset(set(cc[j])):
+                NON.add_edge(node,n)
         if nx.degree(NON,n)==0 and check:
           logger.warn('node in NON without parent. (%i,%i,th=%f,th_old=%f)',
                       n,len(cc[j]),th,th_old)
@@ -437,7 +442,7 @@ class BrainNet():
     
     return NON  
 
-  def percolation(self,G,th,mcs):
+  def percolation(self,G,th,mcs,wdic):
     """
     Percolation process of G throu the thresholds th. Returns gc: a list of
     sizes of clusters for a given threshold; NON: Network of networks; 
@@ -448,11 +453,10 @@ class BrainNet():
     #giant components list
     gc=[[]]
     #network of networks
-    NON=snap.TNEANet.New()          
-    cc=[n.GetId() for n in G.Nodes()]
+    NON=nx.DiGraph()          
     for i in range(len(th)):
       logger.debug('threshold: %f', th[i])
-      [G,cc]=self.prune(G,th[i],mcs,cc)
+      [G,cc,wdic]=self.prune(G,th[i],mcs,wdic)
       gc=self.percolation_data(gc,cc,nn)
       NON=self.update_NON(NON,cc,th[i],th[i-1])
       
