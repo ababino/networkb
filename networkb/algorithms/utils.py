@@ -66,44 +66,47 @@ def window_correlation(x,y,w):
   N=len(x)-w
   return [stats.pearsonr(x[i:i+w],y[i:i+w])[0] for i in range(N)]
 
-def find_th_jumps(bn,max_clus=2):
-  """
-  Returns the thresholds where a jump occurs. A jump is defined as the 
-  join of the biggest cluster with, up to, the max_clus cluster.
-  """
-  NON=bn.get_non()
-  node_list=[node for node,dat in NON.nodes(data=True) if dat['order']==0]
-  subNON=networkx.Graph()
-  for n1,n2 in NON.edges_iter(nbunch=node_list):
-    subNON.add_edge(n1,n2)
-  node_list=networkx.connected_components(subNON)[0]
-  subNON=NON.subgraph(node_list)
-  max_th=max([dat['th'] for n,dat in subNON.nodes(data=True)])
-  N=bn.number_of_nodes()
-  jumps=[]
-  first_cluster=(0,[])
-  for node,data in NON.nodes(data=True):
-    if NON.degree(node)>=3 and NON.node[node]['order']==0:
-      for node2 in NON.neighbors(node):
-        if 0<NON.node[node2]['order']<=max_clus:
-          if 20*len(NON.node[node2]['cc'])>len(NON.node[node]['cc']) or 200*len(NON.node[node2]['cc'])>N:
-            if NON.node[node2]['th']<max_th:
-              jumps.append((NON.node[node2]['th'],NON.node[node2]['cc']))
-              if NON.node[node2]['th']>first_cluster[0]:
-                for node3 in NON.neighbors(node):
-                  if NON.node[node3]['order']==0 and NON.node[node3]['th']==NON.node[node2]['th']:
-                    first_cluster=((NON.node[node3]['th'],NON.node[node3]['cc']))
-  jumps.append(first_cluster)
-  jumps=sorted(jumps,key=lambda x: x[0],reverse=True)
-  return jumps
+def find_th_jumps(bn, max_clus=2):
+    """
+    Returns the thresholds where a jump occurs. A jump is defined as the
+    join of the biggest cluster with, up to, the max_clus cluster.
+    """
+    NON = bn.get_non()
+    node_list = [node for node,dat in NON.nodes(data=True) if dat['order']==0]
+    subNON = networkx.Graph()
+    for n1, n2 in NON.edges_iter(nbunch=node_list):
+        subNON.add_edge(n1, n2)
+    node_list = networkx.connected_components(subNON)[0]
+    subNON = NON.subgraph(node_list)
+    max_th = max([dat['th'] for n,dat in subNON.nodes(data=True)])
+    N = bn.number_of_nodes()
+    jumps = []
+    first_cluster = (0, [])
+    for node, data in NON.nodes(data=True):
+      if NON.degree(node)>=3 and NON.node[node]['order']==0:
+        for node2 in NON.neighbors(node):
+          if 0<NON.node[node2]['order']<=max_clus:
+            if 20*len(NON.node[node2]['cc'])>len(NON.node[node]['cc']) or 200*len(NON.node[node2]['cc'])>N:
+              if NON.node[node2]['th']<max_th:
+                jumps.append((NON.node[node2]['th'],NON.node[node2]['cc']))
+                if NON.node[node2]['th']>first_cluster[0]:
+                  for node3 in NON.neighbors(node):
+                    if NON.node[node3]['order']==0 and NON.node[node3]['th']==NON.node[node2]['th']:
+                      first_cluster=((NON.node[node3]['th'],NON.node[node3]['cc']))
+    jumps.append(first_cluster)
+    jumps=sorted(jumps,key=lambda x: x[0],reverse=True)
+    return jumps
     
-def nodelist2volumen(bn,nodelist,element):
-  node2voxel=bn.node2voxel
-  B=numpy.zeros(bn.volume_shape)   
-  for node in nodelist:
-    (i,j,k)=node2voxel[str(node)]
-    B[i,j,k]=element
-  return B
+def nodelist2volumen(brain, nodelist, element):
+    """
+    lkdfjdfg
+    """
+    node2voxel = brain.node2voxel
+    B = numpy.zeros(brain.volume_shape)
+    for node in nodelist:
+        (i, j, k) = node2voxel[str(node)]
+        B[i, j, k] = element
+    return B
 
 
   
